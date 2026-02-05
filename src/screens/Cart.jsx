@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { ChevronLeft, Minus, Plus, Trash2 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { CartContext } from '../context/CartContext';
+import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { toNumber } from '../services/cartPricing';
 
 function groupByRestaurant(cart) {
@@ -61,8 +62,46 @@ export default function CartScreen() {
     addToCart,
   } = useContext(CartContext);
 
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState(null);
+  const [deleteItemName, setDeleteItemName] = useState('');
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
+
   const groups = useMemo(() => groupByRestaurant(cart), [cart]);
   const hasItems = Array.isArray(cart) && cart.length > 0;
+
+  // Handle delete confirmation
+  const handleDeleteItem = (itemId, itemName) => {
+    setDeletingItemId(itemId);
+    setDeleteItemName(itemName);
+    setDeleteModalVisible(true);
+  };
+
+  // Confirm delete action
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deletingItemId) return;
+
+    try {
+      setIsDeletingItem(true);
+      console.log('🗑️ Cart: Deleting item:', deleteItemName);
+      await removeFromCart(deletingItemId);
+      console.log('✅ Cart: Item deleted successfully');
+      setDeleteModalVisible(false);
+      setDeletingItemId(null);
+      setDeleteItemName('');
+    } catch (error) {
+      console.error('❌ Cart: Error deleting item:', error?.message);
+    } finally {
+      setIsDeletingItem(false);
+    }
+  }, [deletingItemId, deleteItemName, removeFromCart]);
+
+  // Cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setDeleteModalVisible(false);
+    setDeletingItemId(null);
+    setDeleteItemName('');
+  }, []);
 
   const coupons = useMemo(
     () => [
@@ -156,8 +195,11 @@ export default function CartScreen() {
                       <View style={styles.qtyOverlay}>
                         <View style={styles.qtyWrap}>
                           <TouchableOpacity
-                            onPress={() => decrementItem(ci.cartLineId ?? ci.id)}
-
+                            onPress={() => {
+                              const itemId = ci.cartLineId ?? ci.id;
+                              console.log('🔽 Cart: Decrementing item:', itemId, 'Name:', ci.name);
+                              decrementItem(itemId);
+                            }}
                             style={styles.qtyBtn}
                             activeOpacity={0.85}
                           >
@@ -169,7 +211,11 @@ export default function CartScreen() {
                           </Text>
 
                           <TouchableOpacity
-                            onPress={() => incrementItem(ci.cartLineId ?? ci.id)}
+                            onPress={() => {
+                              const itemId = ci.cartLineId ?? ci.id;
+                              console.log('🔼 Cart: Incrementing item:', itemId, 'Name:', ci.name);
+                              incrementItem(itemId);
+                            }}
                             style={styles.qtyBtn}
                             activeOpacity={0.85}
                           >
@@ -199,11 +245,15 @@ export default function CartScreen() {
                             </Text>
 
                             <TouchableOpacity
-                              onPress={() => removeFromCart(ci.id)}
-                              style={styles.trashBtn}
+                              onPress={() => handleDeleteItem(ci.cartLineId ?? ci.id, ci.name)}
+                              style={[styles.trashBtn, deletingItemId === (ci.cartLineId ?? ci.id) && styles.trashBtnDeleting]}
                               activeOpacity={0.85}
+                              disabled={deletingItemId === (ci.cartLineId ?? ci.id)}
                             >
-                              <Trash2 size={16} color="#777" />
+                              <Trash2 
+                                size={16} 
+                                color={deletingItemId === (ci.cartLineId ?? ci.id) ? '#CCC' : '#777'} 
+                              />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -369,6 +419,14 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <DeleteConfirmationModal
+        visible={deleteModalVisible}
+        itemName={deleteItemName}
+        isDeleting={isDeletingItem}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </SafeAreaView>
   );
 }
@@ -497,6 +555,7 @@ const styles = StyleSheet.create({
   },
   itemPrice: { marginLeft: 10, fontWeight: '900', color: '#111' },
   trashBtn: { marginLeft: 10, padding: 6 },
+  trashBtnDeleting: { opacity: 0.5 },
 
   itemTotalsRow: {
     marginTop: 6,

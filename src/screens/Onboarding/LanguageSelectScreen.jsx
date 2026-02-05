@@ -58,7 +58,7 @@ export default function LanguageSelectScreen() {
               style={styles.topImage}
               resizeMode="cover"
             />
-            <LogoIcon width={200} height={190} style={styles.logo} />
+           {/* <LogoIcon width={200} height={190} style={styles.logo} /> */}
           </View>
 
           {/* CONTENT */}

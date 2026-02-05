@@ -88,9 +88,6 @@ export const CartProvider = ({ children }) => {
   const [conflictData, setConflictData] = useState(null);
   const [pendingConflictPayload, setPendingConflictPayload] = useState(null);
   const [conflictModalLoading, setConflictModalLoading] = useState(false);
-  
-  // Track pending quantity update requests to prevent duplicates
-  const pendingRequests = React.useRef({});
 
   // Fetch cart only when user is authenticated
   useEffect(() => {
@@ -320,119 +317,103 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart, fetchCart]);
 
-  const incrementItem = useCallback(async (id) => {
-    console.log('CartContext: Incrementing item:', id);
-    
-    // Prevent duplicate requests for same item
-    if (pendingRequests.current[id]) {
-      console.log('CartContext: Request already pending for item:', id);
-      return;
-    }
-    
-    const item = cart.find(i => i.id === id);
-    if (!item) {
-      console.error('CartContext: Item not found:', id);
-      Alert.alert('Error', 'Item not found in cart');
-      return;
-    }
+  const incrementItem = useCallback(
+    async (id) => {
+      console.log('🔼 CartContext: Incrementing item:', id);
 
-    pendingRequests.current[id] = true;
-    let retries = 0;
-    const maxRetries = 2;
-    
-    try {
-      setLoading(true);
-      console.log('CartContext: Current item:', item);
-      
-      let result;
-      while (retries < maxRetries) {
-        try {
-          result = await updateItemQuantity(id, { action: 'increase' });
-          break;
-        } catch (error) {
-          retries++;
-          if (retries < maxRetries && !error?.response) {
-            // Network error, retry
-            console.log(`CartContext: Retrying increment (attempt ${retries + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
-          } else {
-            throw error;
-          }
+      const item = cart.find(i => i.id === id);
+      if (!item) {
+        console.error('❌ CartContext: Item not found:', id);
+        return;
+      }
+
+      const originalQuantity = item.quantity;
+      const newQuantity = originalQuantity + 1;
+
+      // Optimistic UI update - instant
+      console.log('⚡ Optimistic update:', originalQuantity, '→', newQuantity);
+      setCart(prev =>
+        prev.map(it =>
+          it.id === id ? { ...it, quantity: newQuantity } : it
+        )
+      );
+
+      try {
+        // API call immediately
+        console.log('📡 Sending increment API:', id);
+        const result = await updateItemQuantity(id, {
+          quantity: newQuantity,
+        });
+        console.log('✅ Increment success');
+        
+        if (result?.cart) {
+          await fetchCart();
         }
+      } catch (error) {
+        console.error('❌ Increment failed:', error?.message);
+        // Rollback only on error
+        setCart(prev =>
+          prev.map(it =>
+            it.id === id ? { ...it, quantity: originalQuantity } : it
+          )
+        );
       }
-      
-      console.log('CartContext: Increment result:', result);
-      if (result?.cart) {
-        await fetchCart();
+    },
+    [cart, fetchCart]
+  );
+
+  const decrementItem = useCallback(
+    async (id) => {
+      console.log('🔽 CartContext: Decrementing item:', id);
+
+      const item = cart.find(i => i.id === id);
+      if (!item) {
+        console.error('❌ CartContext: Item not found:', id);
+        return;
       }
-    } catch (error) {
-      console.error('CartContext: Error incrementing item:', error?.message, error?.status);
-      Alert.alert('Error', error?.message || 'Failed to increase quantity');
-    } finally {
-      setLoading(false);
-      delete pendingRequests.current[id];
-    }
-  }, [cart, fetchCart]);
 
-  const decrementItem = useCallback(async (id) => {
-    console.log('CartContext: Decrementing item:', id);
-    
-    // Prevent duplicate requests for same item
-    if (pendingRequests.current[id]) {
-      console.log('CartContext: Request already pending for item:', id);
-      return;
-    }
-    
-    const item = cart.find(i => i.id === id);
-    if (!item) {
-      console.error('CartContext: Item not found:', id);
-      Alert.alert('Error', 'Item not found in cart');
-      return;
-    }
+      const originalQuantity = item.quantity;
 
-    if (item.quantity <= 1) {
-      console.log('CartContext: Item qty is 1, removing instead');
-      await removeFromCart(id);
-      return;
-    }
+      // If qty is 1, remove instead
+      if (originalQuantity <= 1) {
+        console.log('CartContext: Qty is 1, removing...');
+        await removeFromCart(id);
+        return;
+      }
 
-    pendingRequests.current[id] = true;
-    let retries = 0;
-    const maxRetries = 2;
-    
-    try {
-      setLoading(true);
-      console.log('CartContext: Current item quantity:', item.quantity);
-      
-      let result;
-      while (retries < maxRetries) {
-        try {
-          result = await updateItemQuantity(id, { action: 'decrease' });
-          break;
-        } catch (error) {
-          retries++;
-          if (retries < maxRetries && !error?.response) {
-            // Network error, retry
-            console.log(`CartContext: Retrying decrement (attempt ${retries + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
-          } else {
-            throw error;
-          }
+      const newQuantity = originalQuantity - 1;
+
+      // Optimistic UI update - instant
+      console.log('⚡ Optimistic update:', originalQuantity, '→', newQuantity);
+      setCart(prev =>
+        prev.map(it =>
+          it.id === id ? { ...it, quantity: newQuantity } : it
+        )
+      );
+
+      try {
+        // API call immediately
+        console.log('📡 Sending decrement API:', id);
+        const result = await updateItemQuantity(id, {
+          quantity: newQuantity,
+        });
+        console.log('✅ Decrement success');
+        
+        if (result?.cart) {
+          await fetchCart();
         }
+      } catch (error) {
+        console.error('❌ Decrement failed:', error?.message);
+        // Rollback only on error
+        setCart(prev =>
+          prev.map(it =>
+            it.id === id ? { ...it, quantity: originalQuantity } : it
+          )
+        );
       }
-      
-      console.log('CartContext: Decrement result:', result);
-      if (result?.cart) {
-        await fetchCart();
-      }
-    } catch (error) {
-      console.error('CartContext: Error decrementing item:', error?.message, error?.status);
-      Alert.alert('Error', error?.message || 'Failed to decrease quantity');
-    } finally {
-      setLoading(false);
-      delete pendingRequests.current[id];
-    }
-  }, [cart, fetchCart, removeFromCart]);
+    },
+    [cart, fetchCart, removeFromCart]
+  );
 
   // Conflict Modal Handlers
   const handlePlaceCurrentOrder = useCallback(() => {

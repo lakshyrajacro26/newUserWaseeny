@@ -12,10 +12,12 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 
 import { CartContext } from '../context/CartContext';
 import { buildCartLineId } from '../services/cartPricing';
+import { debounceAsync } from '../utils/debounce';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -117,6 +119,7 @@ export default function AddToCartDrawer({
   const [notes, setNotes] = useState('');
   const [showAllFlavors, setShowAllFlavors] = useState(false);
   const [showAllTogether, setShowAllTogether] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { addToCart } = useContext(CartContext);
 
@@ -134,6 +137,7 @@ export default function AddToCartDrawer({
     setQuantity(1);
     setNotes('');
     setSelectedTogetherIds(new Set());
+    setIsSubmitting(false);
 
     const defaultFlavorId = flavors[0]?.id ?? null;
     setSelectedFlavorId(defaultFlavorId);
@@ -272,40 +276,59 @@ export default function AddToCartDrawer({
   const decQty = () => setQuantity(q => Math.max(1, q - 1));
   const incQty = () => setQuantity(q => Math.min(99, q + 1));
 
-  const handleAdd = async () => {
-    if (!item) return;
+  const handleAdd = useMemo(() => {
+    return debounceAsync(async () => {
+      if (!item || isSubmitting) return;
 
-    const addOns = frequentlyBought.filter(x => selectedTogetherIds.has(x.id));
+      setIsSubmitting(true);
+      try {
+        const addOns = frequentlyBought.filter(x => selectedTogetherIds.has(x.id));
 
-    const cartItem = {
-      menuItemId: item?.id,
-      productId: item?.id,
-      name: item?.name,
-      image: item?.image,
-      basePrice,
-      selectedFlavor,
-      addOns,
-      quantity,
-      totalPrice,
-      notes,
-      restaurantId: restaurant?.id || restaurant?._id,
-      restaurantName: restaurant?.name?.en || restaurant?.name,
-      restaurant,
-    };
+        const cartItem = {
+          menuItemId: item?.id,
+          productId: item?.id,
+          name: item?.name,
+          image: item?.image,
+          basePrice,
+          selectedFlavor,
+          addOns,
+          quantity,
+          totalPrice,
+          notes,
+          restaurantId: restaurant?.id || restaurant?._id,
+          restaurantName: restaurant?.name?.en || restaurant?.name,
+          restaurant,
+        };
 
-    const result = await addToCart?.(cartItem);
-    
-    // If conflict, context handles the alert
-    if (result?.conflict) {
-      return;
-    }
+        console.log('📦 AddToCartDrawer: Submitting item with debounce:', cartItem.name);
+        const result = await addToCart?.(cartItem);
+        
+        console.log('📥 AddToCartDrawer: API result:', result);
+        
+        // If conflict, context handles the modal
+        if (result?.conflict) {
+          console.log('⚠️ AddToCartDrawer: Conflict detected, drawer will stay open');
+          setIsSubmitting(false);
+          return;
+        }
 
-    // Close drawer on success
-    if (result?.success || !result?.error) {
-      onAddToCart?.();
-      requestClose();
-    }
-  };
+        // Close drawer on success
+        if (result?.success || !result?.error) {
+          console.log('✅ AddToCartDrawer: Item added successfully, closing drawer');
+          onAddToCart?.();
+          requestClose();
+        } else {
+          console.error('❌ AddToCartDrawer: Failed to add item');
+          Alert.alert('Error', 'Failed to add item to cart');
+        }
+      } catch (error) {
+        console.error('❌ AddToCartDrawer: Error adding to cart:', error?.message);
+        Alert.alert('Error', error?.message || 'Failed to add item to cart');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }, 500); // 500ms debounce
+  }, [item, isSubmitting, frequentlyBought, selectedTogetherIds, basePrice, selectedFlavor, quantity, totalPrice, notes, restaurant, addToCart, onAddToCart, requestClose]);
 
   const itemImageSource =
     item?.image != null && String(item.image).length
@@ -535,8 +558,14 @@ export default function AddToCartDrawer({
               </View>
             </View>
 
-            <Pressable onPress={handleAdd} style={styles.addCartBtn}>
-              <Text style={styles.addCartText}>Add to Cart</Text>
+            <Pressable 
+              onPress={handleAdd} 
+              style={[styles.addCartBtn, isSubmitting && styles.addCartBtnDisabled]}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.addCartText}>
+                {isSubmitting ? 'Adding...' : 'Add to Cart'}
+              </Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -823,6 +852,10 @@ const styles = StyleSheet.create({
     height: 46,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addCartBtnDisabled: {
+    backgroundColor: '#CCCCCC',
+    opacity: 0.7,
   },
   addCartText: {
     color: '#FFF',

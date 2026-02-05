@@ -213,32 +213,9 @@ export default function RestaurantDetail() {
       addOnIds: [],
     });
 
-  const quickAdd = async item => {
-    const currentQty = getSimpleQty(item);
-    
-    const result = await addToCart?.({
-      restaurantId,
-      menuItemId: item?.id,
-      productId: item?.id,
-      name: item?.name,
-      image: item?.image,
-      basePrice: toNumber(item?.price, 0),
-      selectedFlavor: null,
-      addOns: [],
-      quantity: 1,
-      restaurantName,
-      restaurant,
-    });
-
-    // Handle conflict - context already shows alert
-    if (result?.conflict) {
-      return;
-    }
-
-    // Show success feedback if needed
-    if (result?.success) {
-      console.log('Item added to cart successfully');
-    }
+  const quickAdd = (item) => {
+    // Instead of calling API directly, open the drawer for customization
+    openDrawer(item);
   };
 
   const handleToggleFavourite = (item, e) => {
