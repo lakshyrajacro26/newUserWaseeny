@@ -1,0 +1,650 @@
+================================================================================
+TROUBLESHOOTING GUIDE - PERSISTENT AUTHENTICATION
+================================================================================
+
+If something doesn't work, check these scenarios
+
+
+SCENARIO 1: User Always Shown LoginScreen
+================================================================================
+
+Symptom:
+  ✗ User logs in, token should save, but after kill/reopen, shows LoginScreen
+
+Diagnosis:
+  1. Check if token is saved to AsyncStorage
+  2. Check if setAuthenticatedUser() is called after login
+  3. Check if API response includes token
+
+Solutions:
+
+Solution 1: Verify setAuthenticatedUser() is called
+  Location: src/screens/Auth/LoginScreen.jsx (line ~125)
+  Check:
+    await setAuthenticatedUser(token, user);  // Must be called
+
+Solution 2: Verify token is in API response
+  Location: Check your login API response
+  API should return:
+    {
+      "token": "eyJhbGci...",
+      "user": { "id": 1, "name": "John" }
+    }
+  
+  Or:
+    {
+      "accessToken": "eyJhbGci...",
+      "user": { ... }
+    }
+  
+  Or:
+    {
+      "data": {
+        "token": "eyJhbGci...",
+        "user": { ... }
+      }
+    }
+
+Solution 3: Check AsyncStorage
+  Debug:
+    import AsyncStorage from '@react-native-async-storage/async-storage'
+    
+    useEffect(() => {
+      AsyncStorage.getItem('auth_token').then(token => {
+        console.log('Token in storage:', token)
+      })
+    }, [])
+
+  Expected: Token should be logged
+
+Solution 4: Add console logs to AuthContext
+  Location: src/context/AuthContext.jsx
+  Add after line 35:
+    console.log('Auth initialized:', {
+      isAuthenticated,
+      token: token ? token.substring(0, 20) + '...' : null
+    })
+
+  Also in setAuthenticatedUser:
+    console.log('Setting authenticated user with token:', token)
+
+Solution 5: Verify App.tsx has AuthProvider
+  Location: App.tsx
+  Check:
+    <AuthProvider>
+      <CartProvider>
+        <FavouritesProvider>
+          <AppNavigator />
+        </FavouritesProvider>
+      </CartProvider>
+    </AuthProvider>
+
+  If missing: Add AuthProvider as outermost wrapper
+
+
+SCENARIO 2: App Freezes on Startup
+================================================================================
+
+Symptom:
+  ✗ App starts but hangs on SplashScreen for too long (>10 seconds)
+
+Diagnosis:
+  1. AsyncStorage.getItem() might be blocking
+  2. initializeAuth() might have error
+  3. isInitialized never becomes true
+
+Solutions:
+
+Solution 1: Add timeout to AsyncStorage read
+  Location: src/context/AuthContext.jsx
+  Modify initializeAuth():
+    const initializeAuth = useCallback(async () => {
+      try {
+        setIsLoading(true)
+        
+        // Add timeout
+        const token = await Promise.race([
+          getAuthToken(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 3000)
+          )
+        ]).catch(() => null)
+        
+        const user = await Promise.race([
+          getAuthUser(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 3000)
+          )
+        ]).catch(() => null)
+        
+        // ... rest of code
+      }
+    }, [])
+
+Solution 2: Check for AsyncStorage errors
+  Add console.error in catch block:
+    } catch (error) {
+      console.error('Auth init failed:', error.message)
+      // ... rest of handler
+
+Solution 3: Force isInitialized if timeout
+  Add in catch block:
+    } finally {
+      setIsLoading(false)
+      setIsInitialized(true)  // Force true even if failed
+    }
+
+Solution 4: Check device storage
+  Issue: Device storage might be full
+  Solution: Clear device cache/storage
+
+
+SCENARIO 3: isAuthenticated Not Updating
+================================================================================
+
+Symptom:
+  ✗ setAuthenticatedUser() called but isAuthenticated stays false
+  ✗ User not logged in even though function called
+
+Diagnosis:
+  1. setAuthenticatedUser() not awaited
+  2. AuthContext state not properly updated
+  3. Component not subscribed to context changes
+
+Solutions:
+
+Solution 1: Ensure setAuthenticatedUser() is awaited
+  Wrong:
+    setAuthenticatedUser(token, user)
+    Toast.show({ ... })  // Toast shows before save completes
+
+  Right:
+    await setAuthenticatedUser(token, user)
+    Toast.show({ ... })  // Toast shows after save completes
+
+Solution 2: Verify useAuth() returns correct context
+  Check:
+    const context = useAuth()
+    console.log('Auth context:', context)
+    console.log('isAuthenticated:', context.isAuthenticated)
+
+  If undefined: AuthProvider not wrapping component
+
+Solution 3: Check state update in AuthContext
+  Add to setAuthenticatedUser():
+    console.log('Before save:', isAuthenticated)
+    await saveAuth({ token, user })
+    setIsAuthenticated(true)
+    console.log('After update:', true)
+
+Solution 4: Component might not re-render
+  Ensure component subscribes to context:
+    const { isAuthenticated } = useAuth()  // Subscribe
+    // Now component re-renders when isAuthenticated changes
+
+Solution 5: Check React DevTools
+  Use React DevTools to:
+    - Verify context provider exists
+    - Check context value
+    - Trace re-renders
+
+
+SCENARIO 4: Logout Doesn't Work
+================================================================================
+
+Symptom:
+  ✗ User taps logout, still sees MainTabs
+  ✗ Or navigation doesn't go to LoginScreen
+  ✗ Or token not cleared
+
+Diagnosis:
+  1. logout() not called
+  2. logout() completes but navigation doesn't happen
+  3. Navigation fails
+
+Solutions:
+
+Solution 1: Verify logout() is called
+  Location: src/screens/Profile/ProfileHome.jsx (line 46)
+  Check:
+    const handleLogout = async () => {
+      try {
+        await logout()  // Must call logout()
+        // ... navigation happens after
+      }
+    }
+
+Solution 2: Verify navigation resets
+  Check:
+    rootNavigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'LoginScreen' }],
+      }),
+    )
+
+  Should be present after logout()
+
+Solution 3: Check AsyncStorage is cleared
+  After logout, verify:
+    AsyncStorage.getItem('auth_token').then(token => {
+      console.log('Token after logout:', token)  // Should be null
+    })
+
+Solution 4: Force re-render after logout
+  Add state update:
+    setShowDeletePopup(false)  // Or another state
+    // Force re-render
+
+Solution 5: Add error handling
+  Modify handleLogout():
+    const handleLogout = async () => {
+      try {
+        await logout()
+        console.log('Logout successful')
+        // navigation...
+      } catch (error) {
+        console.error('Logout failed:', error)
+        Toast.show({
+          type: 'error',
+          text1: 'Logout Failed',
+          text2: error.message,
+        })
+      }
+    }
+
+
+SCENARIO 5: OTP Verification Doesn't Save Token
+================================================================================
+
+Symptom:
+  ✗ OTP verification succeeds but token not saved
+  ✗ After kill app, user has to login again
+  ✗ FoodPreference shown, but not authenticated
+
+Diagnosis:
+  1. setAuthenticatedUser() not called after OTP verify
+  2. Token not extracted from API response
+  3. Verify response doesn't include token
+
+Solutions:
+
+Solution 1: Add setAuthenticatedUser() to Verify
+  Location: src/screens/Auth/Verify.jsx (line 155)
+  Must have:
+    const { setAuthenticatedUser } = useAuth()
+
+  Then after registerVerify:
+    const token = data?.token || data?.accessToken || data?.data?.token
+    const user = data?.user || data?.data?.user
+    
+    if (token) {
+      await setAuthenticatedUser(token, user)
+    }
+
+Solution 2: Check OTP API response
+  Add console.log:
+    const data = await registerVerify({...})
+    console.log('OTP Response:', data)
+    
+  Check if 'token' is present in response
+
+Solution 3: Extract token properly
+  Verify extraction logic:
+    const token = data?.token || data?.accessToken || data?.data?.token
+    console.log('Extracted token:', token)
+
+Solution 4: Handle missing token
+  If API doesn't return token:
+    - Contact backend team
+    - API should return token after OTP verification
+    - This is critical for auth flow
+
+
+SCENARIO 6: Token Lost After Phone Restart
+================================================================================
+
+Symptom:
+  ✗ User logs in (token saved)
+  ✗ User restarts phone
+  ✗ Token gone, user has to login again
+
+Diagnosis:
+  1. AsyncStorage not persisting to disk
+  2. AsyncStorage write failed silently
+  3. AsyncStorage on emulator/simulator (not persistent)
+
+Solutions:
+
+Solution 1: Check AsyncStorage persistence
+  Add to setAuthenticatedUser():
+    await saveAuth({ token, user })
+    
+    // Verify immediately
+    const savedToken = await AsyncStorage.getItem('auth_token')
+    console.log('Token saved and verified:', !!savedToken)
+
+Solution 2: Use real device
+  Note: Emulator/Simulator AsyncStorage is not persistent
+  Solution: Test on real Android/iOS device
+
+Solution 3: Check AsyncStorage module
+  Verify in package.json:
+    "@react-native-async-storage/async-storage": "^2.2.0"
+
+Solution 4: Clear AsyncStorage and retry
+  Before testing:
+    AsyncStorage.clear().then(() => {
+      console.log('AsyncStorage cleared')
+      // Restart app and login fresh
+    })
+
+Solution 5: Check device storage
+  If device storage is full:
+    - AsyncStorage might fail silently
+    - Clear device cache/files
+
+
+SCENARIO 7: Token Visible in Logs (Security Issue)
+================================================================================
+
+Symptom:
+  ✗ Token logged to console (security risk)
+  ✗ Token in error messages
+  ✗ Token in stack traces
+
+Diagnosis:
+  Development code logging tokens for debugging
+
+Solutions:
+
+Solution 1: Remove token logging before production
+  Find and remove:
+    console.log('Token:', token)  // BAD
+    console.log('Token:', token.substring(0, 20))  // Better but still bad
+
+  Replace with:
+    console.log('Token saved:', !!token)  // Just check if exists
+    console.log('Token length:', token?.length)  // Not the token itself
+
+Solution 2: Use error boundary
+  Don't log error with token:
+    Wrong:
+      console.log('Error:', error, 'Token:', token)
+    
+    Right:
+      console.log('Error saving auth')
+
+Solution 3: Sanitize error messages
+  In setAuthenticatedUser catch:
+    } catch (error) {
+      console.error('Failed to save auth:', error.message)
+      // Don't include token in error message
+    }
+
+Solution 4: Production build check
+  Add check before logging:
+    if (__DEV__) {
+      console.log('Token (DEV ONLY):', token)
+    }
+
+
+SCENARIO 8: Multiple Auth Contexts
+================================================================================
+
+Symptom:
+  ✗ Error: "useAuth must be used within AuthProvider"
+  ✗ Or: AuthProvider applied twice
+
+Diagnosis:
+  1. AuthProvider not wrapping AppNavigator
+  2. Multiple AuthProviders in tree
+  3. useAuth() called outside AuthProvider
+
+Solutions:
+
+Solution 1: Verify AuthProvider wraps App
+  Location: App.tsx
+  Check structure:
+    <AuthProvider>
+      <CartProvider>
+        <FavouritesProvider>
+          <AppNavigator />
+        </FavouritesProvider>
+      </CartProvider>
+    </AuthProvider>
+
+Solution 2: Remove duplicate AuthProviders
+  Search codebase:
+    grep -r "AuthProvider" src/
+    
+  Should only appear in:
+    - App.tsx (wrapper)
+    - AuthContext.jsx (definition)
+    - Individual screens (useAuth hook)
+
+Solution 3: Check import path
+  Verify useAuth imported from correct location:
+    import { useAuth } from '../../context/AuthContext'
+    
+  NOT:
+    import { useAuth } from './AuthContext'  // Wrong path
+
+Solution 4: Move useAuth call
+  If called outside provider:
+    Wrong:
+      export default function MyComponent() {
+        const { isAuth } = useAuth()  // Not in provider scope
+      }
+    
+    Right:
+      export default function MyComponent() {
+        return (
+          <MyInner />
+        )
+      }
+      
+      function MyInner() {
+        const { isAuth } = useAuth()  // Now in provider scope
+      }
+
+
+SCENARIO 9: State Not Persisting Between Sessions
+================================================================================
+
+Symptom:
+  ✗ User object lost
+  ✗ Custom user data not saved
+  ✗ Only token persists, user is null
+
+Diagnosis:
+  1. User object not passed to setAuthenticatedUser()
+  2. User object not saved to AsyncStorage
+  3. User object lost on app reload
+
+Solutions:
+
+Solution 1: Pass user object
+  Wrong:
+    await setAuthenticatedUser(token, null)
+  
+  Right:
+    const user = response.data.user
+    await setAuthenticatedUser(token, user)
+
+Solution 2: Verify user saved to AsyncStorage
+  Add debug log:
+    const user = await AsyncStorage.getItem('auth_user')
+    console.log('User saved:', user)
+
+Solution 3: Check getAuthUser() in storage.js
+  Verify it returns parsed JSON:
+    export const getAuthUser = async () => {
+      const raw = await AsyncStorage.getItem(USER_KEY)
+      return raw ? JSON.parse(raw) : null
+    }
+
+Solution 4: Ensure user object serializable
+  API user must be JSON serializable:
+    {
+      id: 1,
+      email: "user@example.com",
+      name: "John"
+    }
+  
+  NOT:
+    {
+      ...user,
+      fetchedAt: new Date(),  // Dates not serializable
+    }
+
+
+SCENARIO 10: Performance Issues
+================================================================================
+
+Symptom:
+  ✗ Slow app startup
+  ✗ SplashScreen takes 5+ seconds
+  ✗ Navigation laggy
+
+Diagnosis:
+  1. AsyncStorage read is slow
+  2. initializeAuth() not completing
+  3. Component over-rendering
+
+Solutions:
+
+Solution 1: Add timeout to AsyncStorage
+  See SCENARIO 2, Solution 1
+
+Solution 2: Reduce SplashScreen delay
+  Location: src/screens/Onboarding/SplashScreen.jsx
+  Change:
+    const timer = setTimeout(() => {
+      navigation.replace('LanguageSelect')
+    }, 3000)  // Change to 1000 or remove
+
+Solution 3: Optimize initializeAuth()
+  Avoid parsing large user objects:
+    const user = storedUser || {}  // Small default object
+
+Solution 4: Use useCallback dependencies
+  In AuthContext:
+    useEffect(() => {
+      initializeAuth()
+    }, [initializeAuth])  // Only runs when initializeAuth changes
+
+Solution 5: Profile app performance
+  Use React Native Profiler:
+    npm run start -- --reset-cache
+    
+  Check for unnecessary renders
+
+
+QUICK DEBUGGING CHECKLIST
+================================================================================
+
+When something breaks:
+  ☐ Check console for errors
+  ☐ Check AsyncStorage for token key
+  ☐ Verify setAuthenticatedUser() called after login
+  ☐ Verify logout() called in ProfileHome
+  ☐ Verify AuthProvider wraps App
+  ☐ Verify useAuth imported correctly
+  ☐ Check API response includes token
+  ☐ Clear AsyncStorage and retry
+  ☐ Restart metro server
+  ☐ Clear app cache
+  ☐ Test on real device (not emulator)
+
+
+COMMON MISTAKES
+================================================================================
+
+❌ Not awaiting setAuthenticatedUser()
+  ❌ setAuthenticatedUser(token, user)
+     Toast.show({...})
+  
+  ✓ await setAuthenticatedUser(token, user)
+    Toast.show({...})
+
+❌ Not extracting token from response
+  ❌ await setAuthenticatedUser(data, null)
+  
+  ✓ const token = data?.token || data?.accessToken
+    await setAuthenticatedUser(token, data.user)
+
+❌ AuthProvider not wrapping AppNavigator
+  ❌ <CartProvider>
+       <AppNavigator />
+     </CartProvider>
+  
+  ✓ <AuthProvider>
+       <CartProvider>
+         <AppNavigator />
+       </CartProvider>
+     </AuthProvider>
+
+❌ Forgetting to add useAuth to screen
+  ❌ export default function LoginScreen() {
+       // useAuth not imported or used
+     }
+  
+  ✓ import { useAuth } from '../../context/AuthContext'
+    
+    export default function LoginScreen() {
+      const { setAuthenticatedUser } = useAuth()
+    }
+
+❌ Not clearing AsyncStorage on logout
+  ❌ function handleLogout() {
+       navigation.navigate('LoginScreen')
+     }
+  
+  ✓ async function handleLogout() {
+       await logout()  // Clears AsyncStorage
+       navigation.reset({...})
+     }
+
+❌ Logging token to console
+  ❌ console.log('Token:', token)
+  
+  ✓ console.log('Authenticated:', !!token)
+
+❌ Multiple AsyncStorage reads
+  ❌ useEffect(() => {
+       AsyncStorage.getItem('token')  // Every component
+     }, [])
+  
+  ✓ Single read in AuthContext.initializeAuth()
+    All components use useAuth()
+
+
+GETTING HELP
+================================================================================
+
+1. Check these documents first:
+   - AUTHENTICATION_IMPLEMENTATION.md
+   - PERSISTENT_AUTH_GUIDE.txt
+   - QUICK_REFERENCE.txt
+   - This troubleshooting guide
+
+2. Enable debugging:
+   - Add console logs
+   - Check AsyncStorage contents
+   - Monitor React DevTools
+   - Check network requests
+
+3. Test scenarios:
+   - Fresh install
+   - Kill and relaunch
+   - Logout and login
+   - Check AsyncStorage
+
+4. Contact backend team if:
+   - API response missing token
+   - 401/403 errors unexpected
+   - OTP verification failing
+
+
+================================================================================
