@@ -35,25 +35,36 @@ export default function RestaurantDetail() {
   const { restaurant: initialParamRestaurant } = route.params;
   const isMountedRef = useRef(true);
 
-  const [restaurant, setRestaurant] = useState(() => ({
-    id: initialParamRestaurant?.id ?? initialParamRestaurant?._id ?? null,
-    _id: initialParamRestaurant?._id ?? initialParamRestaurant?.id ?? null,
-    name: initialParamRestaurant?.name ?? 'Restaurant',
-    rating: initialParamRestaurant?.rating ?? null,
-    totalRatings: initialParamRestaurant?.ratingCount ?? '',
-    deliveryTime: initialParamRestaurant?.deliveryTime ?? '',
-    minOrderValue: initialParamRestaurant?.minOrderValue ?? null,
-    cuisines: initialParamRestaurant?.cuisines ?? [],
-    coverImage: initialParamRestaurant?.coverImage ?? initialParamRestaurant?.image ?? '',
-    isFreeDelivery: initialParamRestaurant?.isFreeDelivery ?? false,
-    freeDeliveryText: initialParamRestaurant?.freeDeliveryText ?? '',
-    minOrder: initialParamRestaurant?.minOrder ?? '',
-    categories: [],
-    popularItems: [],
-    menu: [],
-    reviews: [],
-    offers: [],
-  }));
+  const [restaurant, setRestaurant] = useState(() => {
+    const name = typeof initialParamRestaurant?.name === 'object'
+      ? initialParamRestaurant?.name?.en ?? 'Restaurant'
+      : initialParamRestaurant?.name ?? 'Restaurant';
+    
+    const cuisines = Array.isArray(initialParamRestaurant?.cuisine)
+      ? initialParamRestaurant.cuisine
+      : (Array.isArray(initialParamRestaurant?.cuisines) ? initialParamRestaurant.cuisines : []);
+    
+    return {
+      id: initialParamRestaurant?.id ?? initialParamRestaurant?._id ?? null,
+      _id: initialParamRestaurant?._id ?? initialParamRestaurant?.id ?? null,
+      name,
+      rating: initialParamRestaurant?.rating ?? 0,
+      totalRatings: initialParamRestaurant?.ratingCount ?? 0,
+      deliveryTime: initialParamRestaurant?.deliveryTime ?? 30,
+      minOrderValue: initialParamRestaurant?.minOrderValue ?? 0,
+      cuisines,
+      image: initialParamRestaurant?.image ?? '',
+      bannerImage: initialParamRestaurant?.bannerImage ?? '',
+      isFreeDelivery: initialParamRestaurant?.isFreeDelivery ?? false,
+      freeDeliveryText: initialParamRestaurant?.isFreeDelivery ? 'Free delivery' : '',
+      minOrder: initialParamRestaurant?.minOrderValue ? `₹${initialParamRestaurant.minOrderValue}` : '',
+      categories: [],
+      popularItems: [],
+      menu: [],
+      reviews: [],
+      offers: [],
+    };
+  });
 
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState(null);
@@ -94,6 +105,7 @@ export default function RestaurantDetail() {
         name: p.name?.en || 'Unknown Product',
         description: p.description?.en || '',
         image: p.image || 'https://placehold.co/150',
+        bannerimage: p.bannerImage || 'https://placehold.co/150',
         price: p.basePrice || 0,
         isVeg: p.isVeg,
         categoryId: primaryCategory,
@@ -117,10 +129,16 @@ export default function RestaurantDetail() {
         items: menuByCategory[cat.id] || [],
       }));
 
+      const name = typeof initialParamRestaurant?.name === 'object'
+        ? initialParamRestaurant?.name?.en ?? prev.name
+        : initialParamRestaurant?.name ?? prev.name;
+      
       setRestaurant(prev => ({
         ...prev,
         id: restaurantParamId,
-        name: initialParamRestaurant?.name || prev.name,
+        name,
+        image: initialParamRestaurant?.image ?? prev.image,
+        bannerImage: initialParamRestaurant?.bannerImage ?? prev.bannerImage,
         categories: categoriesWithIds,
         popularItems: mappedItems,
         menu:
@@ -180,8 +198,11 @@ export default function RestaurantDetail() {
     'Free delivery for first order';
   const minOrderText =
     restaurant?.minOrder || restaurant?.minimumOrder || '₹119.00';
-  const coverImageSource = restaurant?.coverImage
-    ? { uri: restaurant.coverImage }
+  const headerImageSource = (restaurant?.bannerImage && restaurant.bannerImage.trim())
+    ? { uri: restaurant.bannerImage }
+    : require('../../assets/images/Food.png');
+  const thumbImageSource = (restaurant?.image && restaurant.image.trim())
+    ? { uri: restaurant.image }
     : require('../../assets/images/Food.png');
 
   const subtotal = useMemo(() => toNumber(totals?.subtotal, 0), [totals]);
@@ -250,7 +271,7 @@ export default function RestaurantDetail() {
       >
         <View style={styles.headerContainer}>
           <Image
-            source={coverImageSource}
+            source={headerImageSource}
             style={styles.headerImage}
           />
 
@@ -271,7 +292,7 @@ export default function RestaurantDetail() {
                   favouriteId: restaurantId,
                   id: restaurantId,
                   name: restaurantName,
-                  image: restaurant.coverImage,
+                  image: restaurant.bannerImage,
                   restaurant,
                 })}
               >
@@ -302,7 +323,7 @@ export default function RestaurantDetail() {
         <View style={styles.infoBox}>
           <View style={styles.topRow}>
             <Image
-              source={coverImageSource}
+              source={thumbImageSource}
               style={styles.resThumb}
             />
 

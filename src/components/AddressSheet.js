@@ -1,12 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Alert,
   BackHandler,
   Dimensions,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
+  ToastAndroid,
   Text,
   TextInput,
   TouchableOpacity,
@@ -22,6 +26,8 @@ export default function AddressSheet({
   onSelect,
   onApply,
   onAddAddress,
+  onUpdateAddress,
+  onDeleteAddress,
   onClose,
 }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -37,16 +43,37 @@ export default function AddressSheet({
   );
   const [localList, setLocalList] = useState(list);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newLabel, setNewLabel] = useState('');
   const [newLine, setNewLine] = useState('');
+  const [newCity, setNewCity] = useState('');
+  const [newZip, setNewZip] = useState('');
+  const [newInstructions, setNewInstructions] = useState('');
+  const [newLat, setNewLat] = useState('');
+  const [newLng, setNewLng] = useState('');
+  const [newIsDefault, setNewIsDefault] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveTimerRef = useRef(null);
 
   useEffect(() => {
     if (!visible) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    setIsSaving(false);
     setLocalSelectedId(selectedAddressId ?? null);
     setLocalList(list);
     setIsAdding(false);
+    setEditingId(null);
     setNewLabel('');
     setNewLine('');
+    setNewCity('');
+    setNewZip('');
+    setNewInstructions('');
+    setNewLat('');
+    setNewLng('');
+    setNewIsDefault(false);
   }, [list, selectedAddressId, visible]);
 
   useEffect(() => {
@@ -81,21 +108,117 @@ export default function AddressSheet({
   }, [overlayOpacity, translateY, visible]);
 
   const canApply = !!localSelectedId;
-  const canSave = newLine.trim().length > 0;
+  const canSave = newLine.trim().length > 0 && newCity.trim().length > 0;
 
-  const handleSaveAddress = () => {
-    if (!canSave) return;
-    const created = {
-      id: `addr_${Date.now()}`,
+  const handleSaveAddress = async () => {
+    if (!canSave || isSaving) return;
+    const lat = Number(newLat);
+    const lng = Number(newLng);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+    const payload = {
       label: newLabel.trim() || 'Other',
       addressLine: newLine.trim(),
+      city: newCity.trim(),
+      zipCode: newZip.trim(),
+      deliveryInstructions: newInstructions.trim() || undefined,
+      isDefault: !!newIsDefault,
+      location: hasCoords
+        ? { type: 'Point', coordinates: [lng, lat] }
+        : undefined,
     };
-    setLocalList(prev => [created, ...prev]);
-    setLocalSelectedId(created.id);
-    onSelect?.(created);
-    setIsAdding(false);
+
+    setIsSaving(true);
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        let nextList = localList;
+        if (editingId) {
+          const response = await onUpdateAddress?.(editingId, payload);
+          nextList = response || localList;
+        } else {
+          const response = await onAddAddress?.(payload);
+          nextList = response || localList;
+        }
+
+        if (Array.isArray(nextList) && nextList.length > 0) {
+          setLocalList(nextList);
+          const selectedId = editingId || nextList[0]?.id || null;
+          if (selectedId) {
+            setLocalSelectedId(selectedId);
+            const selected = nextList.find(a => a.id === selectedId);
+            if (selected) onSelect?.(selected);
+          }
+        }
+      } finally {
+        setIsSaving(false);
+        setIsAdding(false);
+        setEditingId(null);
+        setNewLabel('');
+        setNewLine('');
+        setNewCity('');
+        setNewZip('');
+        setNewInstructions('');
+        setNewLat('');
+        setNewLng('');
+        setNewIsDefault(false);
+      }
+    }, 350);
+  };
+
+  const startAdd = () => {
+    setIsAdding(true);
+    setEditingId(null);
     setNewLabel('');
     setNewLine('');
+    setNewCity('');
+    setNewZip('');
+    setNewInstructions('');
+    setNewLat('');
+    setNewLng('');
+    setNewIsDefault(false);
+  };
+
+  const startEdit = addr => {
+    setIsAdding(true);
+    setEditingId(addr?.id || null);
+    setNewLabel(addr?.label || '');
+    setNewLine(addr?.addressLine || '');
+    setNewCity(addr?.city || '');
+    setNewZip(addr?.zipCode || '');
+    setNewInstructions(addr?.deliveryInstructions || '');
+    const coords = addr?.location?.coordinates || [];
+    setNewLng(coords[0] != null ? String(coords[0]) : '');
+    setNewLat(coords[1] != null ? String(coords[1]) : '');
+    setNewIsDefault(!!addr?.isDefault);
+  };
+
+  const handleDelete = async addr => {
+    if (!addr?.id) return;
+    try {
+      const response = await onDeleteAddress?.(addr.id);
+      const nextList = response || localList.filter(x => x.id !== addr.id);
+      setLocalList(nextList);
+      if (String(localSelectedId) === String(addr.id)) {
+        setLocalSelectedId(null);
+      }
+      const message = response?.message || 'Address removed';
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(message, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Success', message);
+      }
+    } catch (error) {
+      const message = error?.message || 'Failed to remove address';
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(message, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Error', message);
+      }
+    }
   };
 
   return (
@@ -127,7 +250,9 @@ export default function AddressSheet({
           >
             {isAdding ? (
               <View style={styles.formCard}>
-                <Text style={styles.formTitle}>Add new address</Text>
+                <Text style={styles.formTitle}>
+                  {editingId ? 'Edit address' : 'Add new address'}
+                </Text>
                 <TextInput
                   value={newLabel}
                   onChangeText={setNewLabel}
@@ -143,24 +268,89 @@ export default function AddressSheet({
                   style={[styles.input, styles.inputMultiline]}
                   multiline
                 />
+                <TextInput
+                  value={newCity}
+                  onChangeText={setNewCity}
+                  placeholder="City"
+                  placeholderTextColor="#9A9A9A"
+                  style={styles.input}
+                />
+                <TextInput
+                  value={newZip}
+                  onChangeText={setNewZip}
+                  placeholder="ZIP code"
+                  placeholderTextColor="#9A9A9A"
+                  style={styles.input}
+                />
+                <TextInput
+                  value={newInstructions}
+                  onChangeText={setNewInstructions}
+                  placeholder="Delivery instructions"
+                  placeholderTextColor="#9A9A9A"
+                  style={[styles.input, styles.inputMultiline]}
+                  multiline
+                />
+                <View style={styles.coordRow}>
+                  <TextInput
+                    value={newLat}
+                    onChangeText={setNewLat}
+                    placeholder="Latitude"
+                    placeholderTextColor="#9A9A9A"
+                    style={[styles.input, styles.inputHalf]}
+                  />
+                  <TextInput
+                    value={newLng}
+                    onChangeText={setNewLng}
+                    placeholder="Longitude"
+                    placeholderTextColor="#9A9A9A"
+                    style={[styles.input, styles.inputHalf]}
+                  />
+                </View>
+                <View style={styles.defaultRow}>
+                  <Text style={styles.defaultLabel}>Set as default</Text>
+                  <Switch
+                    value={newIsDefault}
+                    onValueChange={setNewIsDefault}
+                    trackColor={{ false: '#D9D9D9', true: '#D9D9D9' }}
+                    thumbColor={newIsDefault ? '#111' : '#FFF'}
+                  />
+                </View>
                 <View style={styles.formActions}>
                   <TouchableOpacity
                     style={styles.cancelBtn}
                     onPress={() => {
+                      if (saveTimerRef.current) {
+                        clearTimeout(saveTimerRef.current);
+                        saveTimerRef.current = null;
+                      }
+                      setIsSaving(false);
                       setIsAdding(false);
+                      setEditingId(null);
                       setNewLabel('');
                       setNewLine('');
+                      setNewCity('');
+                      setNewZip('');
+                      setNewInstructions('');
+                      setNewLat('');
+                      setNewLng('');
+                      setNewIsDefault(false);
                     }}
                     activeOpacity={0.9}
                   >
                     <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+                    style={[
+                      styles.saveBtn,
+                      (!canSave || isSaving) && styles.saveBtnDisabled,
+                    ]}
                     onPress={handleSaveAddress}
                     activeOpacity={0.9}
+                    disabled={!canSave || isSaving}
                   >
-                    <Text style={styles.saveText}>Save</Text>
+                    <Text style={styles.saveText}>
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -173,7 +363,7 @@ export default function AddressSheet({
 
                 <TouchableOpacity
                   style={styles.addAddressBtn}
-                  onPress={() => setIsAdding(true)}
+                  onPress={startAdd}
                   activeOpacity={0.9}
                 >
                   <Text style={styles.addAddressText}>+ Add new address</Text>
@@ -208,6 +398,27 @@ export default function AddressSheet({
                         <Text numberOfLines={2} style={styles.addrLine}>
                           {addr.addressLine}
                         </Text>
+                        {!!addr.city && (
+                          <Text numberOfLines={1} style={styles.addrMeta}>
+                            {addr.city} {addr.zipCode ? `- ${addr.zipCode}` : ''}
+                          </Text>
+                        )}
+                        <View style={styles.addrActions}>
+                          <TouchableOpacity
+                            style={styles.addrActionBtn}
+                            onPress={() => startEdit(addr)}
+                            activeOpacity={0.9}
+                          >
+                            <Text style={styles.addrActionText}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.addrActionBtn}
+                            onPress={() => handleDelete(addr)}
+                            activeOpacity={0.9}
+                          >
+                            <Text style={styles.addrActionDelete}>Delete</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </TouchableOpacity>
                   );
@@ -215,7 +426,7 @@ export default function AddressSheet({
 
                 <TouchableOpacity
                   style={styles.addInline}
-                  onPress={() => setIsAdding(true)}
+                  onPress={startAdd}
                   activeOpacity={0.9}
                 >
                   <Text style={styles.addInlineText}>+ Add new address</Text>
@@ -226,23 +437,25 @@ export default function AddressSheet({
             <View style={{ height: 96 }} />
           </ScrollView>
 
-          <View style={styles.bottomBar}>
-            <TouchableOpacity
-              onPress={() => {
-                if (!canApply) return;
-                const selected = localList.find(a => a.id === localSelectedId);
-                if (!selected) return;
-                onApply?.(selected);
-              }}
-              style={[
-                styles.primaryBtn,
-                !canApply && styles.primaryBtnDisabled,
-              ]}
-              activeOpacity={0.9}
-            >
-              <Text style={styles.primaryText}>Apply</Text>
-            </TouchableOpacity>
-          </View>
+          {!isAdding && (
+            <View style={styles.bottomBar}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!canApply) return;
+                  const selected = localList.find(a => a.id === localSelectedId);
+                  if (!selected) return;
+                  onApply?.(selected);
+                }}
+                style={[
+                  styles.primaryBtn,
+                  !canApply && styles.primaryBtnDisabled,
+                ]}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.primaryText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -310,6 +523,21 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingTop: 10,
   },
+  inputHalf: {
+    flex: 1,
+  },
+  coordRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  defaultRow: {
+    marginTop: 2,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  defaultLabel: { fontSize: 12, fontWeight: '700', color: '#111' },
   formActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -317,18 +545,20 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     paddingHorizontal: 14,
-    height: 40,
+    height: 42,
+    minWidth: 92,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E6E6E6',
+    borderColor: '#DADADA',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: '#F7F7F7',
   },
-  cancelText: { color: '#111', fontWeight: '700', fontSize: 12 },
+  cancelText: { color: '#111', fontWeight: '800', fontSize: 12 },
   saveBtn: {
     paddingHorizontal: 16,
-    height: 40,
+    height: 42,
+    minWidth: 110,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -394,6 +624,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  addrMeta: {
+    marginTop: 4,
+    color: '#777',
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  addrActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addrActionBtn: {
+    paddingVertical: 2,
+  },
+  addrActionText: { color: '#111', fontWeight: '700', fontSize: 12 },
+  addrActionDelete: { color: '#E53935', fontWeight: '700', fontSize: 12 },
 
   addInline: {
     marginTop: 4,

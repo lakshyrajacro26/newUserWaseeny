@@ -43,16 +43,17 @@ const RestaurantListCard = memo(({
   onPress, 
   onFavoritePress 
 }) => {
-  const cuisineText = Array.isArray(item?.cuisines)
-    ? item.cuisines.join(', ')
-    : item?.cuisine ||
-      item?.category ||
-      'Pizza, Italian, Fast Food';
+  const cuisines = Array.isArray(item?.cuisine)
+    ? item.cuisine
+    : (Array.isArray(item?.cuisines) ? item.cuisines : []);
+  const cuisineText = cuisines.length > 0
+    ? cuisines.join(', ')
+    : 'Pizza, Italian, Fast Food';
   const distanceText = item?.distance || null;
-  const timeText = item?.deliveryTime || '20 - 30 minutes';
-  const ratingValue = item?.rating ?? '5.0';
-  const ratingCount = item?.ratingCount || '2.7k';
-  const bestSellerText = item?.bestSeller || 'Best Seller: Cheese Burst Pizza';
+  const timeText = item?.deliveryTime ? `${item.deliveryTime} minutes` : '20 - 30 minutes';
+  const ratingValue = item?.rating ?? 0;
+  const ratingCount = item?.ratingCount || 0;
+  const bestSellerText = item?.bestSeller || 'Popular choice';
 
   return (
     <TouchableOpacity
@@ -62,7 +63,7 @@ const RestaurantListCard = memo(({
     >
       <View style={styles.listImageWrap}>
         <Image
-          source={{ uri: item.coverImage }}
+          source={(item.bannerImage && item.bannerImage.trim()) ? { uri: item.bannerImage } : require('../../assets/images/Food.png')}
           style={styles.listImage}
         />
         <TouchableOpacity
@@ -336,9 +337,9 @@ export default function HomeScreen() {
         id: item._id || item.id,
         name: item.name?.en || item.name || 'Restaurant',
         cuisines: item.cuisine || [],
-        coverImage:
-          item.image ||
-          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+        image: item.image || '',
+        bannerImage: item.bannerImage || '',
+        coverImage: item.bannerImage || item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
         rating: item.rating || 4.5,
         deliveryTime: item.deliveryTime
           ? `${item.deliveryTime} mins`
@@ -387,8 +388,8 @@ export default function HomeScreen() {
   };
 
   const promoImageSource =
-    restaurants?.[0]?.coverImage != null
-      ? { uri: restaurants[0].coverImage }
+    restaurants?.[0]?.bannerImage != null
+      ? { uri: restaurants[0].bannerImage }
       : require('../../assets/images/Food.png');
 
   // Build promo cards from API banners or fall back to restaurants
@@ -420,7 +421,7 @@ export default function HomeScreen() {
     : Array.isArray(restaurants) && restaurants.length
     ? restaurants.slice(0, 6).map(r => ({
         id: String(r.id ?? r.name),
-        image: r?.coverImage ? { uri: r.coverImage } : promoImageSource,
+        image: (r?.bannerImage && r.bannerImage.trim()) ? { uri: r.bannerImage } : promoImageSource,
         title: 'Seasonal favorites are here',
         subtitle: 'try something new today !',
         cta: 'Explore Now',
@@ -630,17 +631,18 @@ export default function HomeScreen() {
                   contentContainerStyle={styles.recommendList}
                   renderItem={({ item }) =>
                     (() => {
-                      const cuisineText = Array.isArray(item?.cuisines)
-                        ? item.cuisines.join(', ')
-                        : item?.cuisine ||
-                          item?.category ||
-                          'Pizza, Italian, Fast Food';
+                      const cuisines = Array.isArray(item?.cuisine)
+                        ? item.cuisine
+                        : (Array.isArray(item?.cuisines) ? item.cuisines : []);
+                      const cuisineText = cuisines.length > 0
+                        ? cuisines.join(', ')
+                        : 'Pizza, Italian, Fast Food';
                       const distanceText = item?.distance || null;
-                      const timeText = item?.deliveryTime || '20 - 30 minutes';
-                      const ratingValue = item?.rating ?? '5.0';
-                      const ratingCount = item?.ratingCount || '2.7k';
+                      const timeText = item?.deliveryTime ? `${item.deliveryTime} minutes` : '20 - 30 minutes';
+                      const ratingValue = item?.rating ?? 0;
+                      const ratingCount = item?.ratingCount || 0;
                       const bestSellerText =
-                        item?.bestSeller || 'Best Seller: Cheese Burst Pizza';
+                        item?.bestSeller || 'Popular choice';
                       const isFavorite = favorites.has(item.id);
 
                       return (
@@ -654,7 +656,7 @@ export default function HomeScreen() {
                         >
                           <View style={styles.recommendImageWrap}>
                             <Image
-                              source={{ uri: item.coverImage }}
+                              source={(item.bannerImage && item.bannerImage.trim()) ? { uri: item.bannerImage } : require('../../assets/images/Food.png')}
                               style={styles.recommendImage}
                             />
                             <TouchableOpacity

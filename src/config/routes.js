@@ -29,3 +29,9 @@ export const CART_ROUTES = {
   removeItem: '/api/cart/item/:itemId',
   updateQuantity: '/api/cart/item/:itemId/quantity',
 };
+
+export const USER_ROUTES = {
+  profile: '/api/user/profile',
+  addresses: '/api/user/address',
+  addressById: '/api/user/address/:id',
+};

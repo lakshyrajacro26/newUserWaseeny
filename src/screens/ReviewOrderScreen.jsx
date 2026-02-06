@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,6 +14,12 @@ import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { CartContext } from '../context/CartContext';
 import { generateOrderId, placeOrder } from '../services/orderService';
 import { toNumber } from '../services/cartPricing';
+import {
+  addAddress,
+  deleteAddress,
+  getAddresses,
+  updateAddress,
+} from '../services/addressService';
 import OrderConfirmedModal from '../components/OrderConfirmedModal';
 import DeliveryPickupSheet from '../components/DeliveryPickupSheet';
 import AddressSheet from '../components/AddressSheet';
@@ -25,13 +31,13 @@ export default function ReviewOrderScreen() {
     cart,
     totals,
     addOrder,
-    clearCart,
     checkout,
     setCheckout,
     address,
     setAddress,
     paymentMethod,
     setPaymentMethod,
+    fetchCart,
   } = useContext(CartContext);
 
   const [activeSheet, setActiveSheet] = useState(null); // 'delivery' | 'address' | 'payment' | null
@@ -50,6 +56,7 @@ export default function ReviewOrderScreen() {
   const [leaveAtDoor, setLeaveAtDoor] = useState(false);
   const [tipAmount, setTipAmount] = useState(0); // 0 | 5 | 10 | 20
   const [errors, setErrors] = useState({});
+  const placeOrderTimerRef = useRef(null);
 
   const latestCartRef = useRef(cart);
   latestCartRef.current = cart;
@@ -65,33 +72,33 @@ export default function ReviewOrderScreen() {
 
   const isAnySheetVisible = activeSheet !== null;
 
-  const [addressBook, setAddressBook] = useState(() => [
-    {
-      id: 'addr_home',
-      label: 'Home',
-      addressLine: 'Amsterdam St, 4301 Lucena, Lucena Quezon',
-    },
-    {
-      id: 'addr_work',
-      label: 'Work',
-      addressLine: '2nd Floor, City Center, Main Road',
-    },
-  ]);
+  const [addresses, setAddresses] = useState([]);
 
   const summary = useMemo(() => {
     const subtotal = toNumber(totals?.subtotal, 0);
-    const serviceFee = 5;
-    const discount = 20;
     return {
       subtotal,
-      delivery: 0,
-      tax: 0,
-      serviceFee,
-      discount,
+      delivery: toNumber(totals?.delivery, 0),
+      tax: toNumber(totals?.tax, 0),
+      serviceFee: toNumber(totals?.platformFee, 0),
+      discount: toNumber(totals?.discount, 0),
       tip: tipAmount,
-      grandTotal: Math.max(0, subtotal + serviceFee - discount + tipAmount),
+      grandTotal: Math.max(
+        0,
+        subtotal + toNumber(totals?.delivery, 0) + toNumber(totals?.tax, 0) +
+          toNumber(totals?.platformFee, 0) - toNumber(totals?.discount, 0) + tipAmount,
+      ),
     };
   }, [totals, tipAmount]);
+
+  useEffect(() => {
+    return () => {
+      if (placeOrderTimerRef.current) {
+        clearTimeout(placeOrderTimerRef.current);
+        placeOrderTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -102,6 +109,56 @@ export default function ReviewOrderScreen() {
 
       return unsubscribe;
     }, [navigation, showModal, isAnySheetVisible, isPlacing]),
+  );
+
+  const normalizeAddress = useCallback(addr => {
+    if (!addr) return null;
+    return {
+      id: addr._id || addr.id,
+      label: addr.label,
+      addressLine: addr.addressLine,
+      city: addr.city,
+      zipCode: addr.zipCode,
+      location: addr.location,
+      deliveryInstructions: addr.deliveryInstructions,
+      isDefault: !!addr.isDefault,
+    };
+  }, []);
+
+  const applyAddressList = useCallback(
+    data => {
+      const list = (data?.addresses || [])
+        .map(normalizeAddress)
+        .filter(Boolean);
+      setAddresses(list);
+
+      if (!address?.id && list.length > 0) {
+        const defaultAddr = list.find(a => a.isDefault) || list[0];
+        if (defaultAddr) setAddress(defaultAddr);
+      }
+
+      return list;
+    },
+    [address?.id, normalizeAddress, setAddress],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const loadAddresses = async () => {
+        try {
+          const response = await getAddresses();
+          if (active) applyAddressList(response);
+        } catch (error) {
+          console.error('Address fetch failed:', error?.message);
+        }
+      };
+
+      loadAddresses();
+      return () => {
+        active = false;
+      };
+    }, [applyAddressList]),
   );
 
   const openCheckoutStep = step => {
@@ -131,9 +188,15 @@ export default function ReviewOrderScreen() {
 
     setErrors(newErrors);
 
-    if (isValid) {
-      handleFinalizeOrder();
+    if (!isValid) return;
+
+    if (placeOrderTimerRef.current) {
+      clearTimeout(placeOrderTimerRef.current);
     }
+
+    placeOrderTimerRef.current = setTimeout(() => {
+      handleFinalizeOrder();
+    }, 300);
   };
 
   const handleFinalizeOrder = async finalPaymentMethod => {
@@ -151,48 +214,69 @@ export default function ReviewOrderScreen() {
     const paymentSnapshot =
       finalPaymentMethod ?? latestPaymentMethodRef.current;
 
+    const paymentCode =
+      paymentSnapshot?.id || paymentSnapshot?.code || paymentSnapshot?.value || 'cod';
+
     const orderPayload = {
-      items: latestCartRef.current,
-      totals: summary,
-      checkout: checkoutSnapshot,
-      address: addressSnapshot,
-      paymentMethod: paymentSnapshot,
-      leaveAtDoor,
-      createdAt: new Date().toISOString(),
-      status: 'confirmed',
+      addressId: addressSnapshot?.id,
+      paymentMethod: paymentCode,
     };
 
     let newOrderId = generateOrderId('FP');
 
     try {
       const response = await placeOrder(orderPayload);
-      if (response?.order?._id || response?._id) {
-        newOrderId = response?.order?._id || response?._id;
+      const apiOrder = response?.order || null;
+      if (apiOrder?._id) {
+        newOrderId = apiOrder._id;
+        addOrder({
+          ...apiOrder,
+          id: apiOrder._id,
+          totals: summary,
+          checkout: checkoutSnapshot,
+          address: addressSnapshot,
+          paymentMethod: paymentSnapshot,
+          leaveAtDoor,
+        });
+      } else {
+        addOrder({
+          id: newOrderId,
+          totals: summary,
+          checkout: checkoutSnapshot,
+          address: addressSnapshot,
+          paymentMethod: paymentSnapshot,
+          leaveAtDoor,
+          createdAt: new Date().toISOString(),
+          status: 'confirmed',
+          items: latestCartRef.current,
+        });
       }
     } catch (error) {
-      console.log(
-        'Order API failed, falling back to local confirmation',
-        error,
-      );
-      
+      console.log('Order API failed, falling back to local confirmation', error);
+      addOrder({
+        id: newOrderId,
+        totals: summary,
+        checkout: checkoutSnapshot,
+        address: addressSnapshot,
+        paymentMethod: paymentSnapshot,
+        leaveAtDoor,
+        createdAt: new Date().toISOString(),
+        status: 'confirmed',
+        items: latestCartRef.current,
+      });
+    } finally {
+      // Sync cart state with backend (backend clears cart after order placement)
+      await fetchCart();
+      setOrderId(newOrderId);
+      setShowModal(true);
+      setIsPlacing(false);
     }
-
-    addOrder({ ...orderPayload, id: newOrderId });
-    clearCart();
-    setOrderId(newOrderId);
-    setShowModal(true);
-    setIsPlacing(false);
   };
 
-  const addressOptions = useMemo(() => {
-    if (address && address.id && !addressBook.some(x => x.id === address.id)) {
-      return [address, ...addressBook];
-    }
-    return addressBook;
-  }, [address, addressBook]);
+  const addressOptions = useMemo(() => addresses, [addresses]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable
           onPress={() => navigation.goBack()}
@@ -380,7 +464,7 @@ export default function ReviewOrderScreen() {
           </Text>
         </Text>
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
 
       {errors.submit && (
@@ -389,7 +473,7 @@ export default function ReviewOrderScreen() {
         </View>
       )}
 
-      <View style={styles.bottomBar}>
+      <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
         <View style={styles.bottomLeft}>
           <Text style={styles.bottomTotal}>
             ₹{summary.grandTotal.toFixed(2)}
@@ -410,7 +494,7 @@ export default function ReviewOrderScreen() {
             <Text style={styles.placeOrderText}>Place Order</Text>
           )}
         </Pressable>
-      </View>
+      </SafeAreaView>
 
       <DeliveryPickupSheet
         visible={activeSheet === 'delivery'}
@@ -443,15 +527,17 @@ export default function ReviewOrderScreen() {
           setSheetBackTarget(prev => ({ ...prev, payment: 'address' }));
           setActiveSheet('payment');
         }}
-        onAddAddress={() => {
-          const id = `addr_${Date.now()}`;
-          const created = {
-            id,
-            label: 'Other',
-            addressLine: 'New Address (edit later)',
-          };
-          setAddressBook(prev => [created, ...prev]);
-          setAddress(created);
+        onAddAddress={async payload => {
+          const response = await addAddress(payload);
+          return applyAddressList(response);
+        }}
+        onUpdateAddress={async (id, payload) => {
+          const response = await updateAddress(id, payload);
+          return applyAddressList(response);
+        }}
+        onDeleteAddress={async id => {
+          const response = await deleteAddress(id);
+          return applyAddressList(response);
         }}
         onClose={() =>
           setActiveSheet(

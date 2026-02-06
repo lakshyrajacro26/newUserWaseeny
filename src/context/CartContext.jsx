@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
+import { useRef } from 'react';
+
 import { ConflictModal } from '../components/ConflictModal';
 import {
   buildCartLineId,
@@ -88,6 +90,15 @@ export const CartProvider = ({ children }) => {
   const [conflictData, setConflictData] = useState(null);
   const [pendingConflictPayload, setPendingConflictPayload] = useState(null);
   const [conflictModalLoading, setConflictModalLoading] = useState(false);
+
+  // Debounce timers for quantity updates (prevent multiple API calls)
+  const quantityUpdateTimers = useRef({});
+  const pendingQuantities = useRef({});
+  const cartRef = useRef([]);
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
 
   // Fetch cart only when user is authenticated
   useEffect(() => {
@@ -317,103 +328,148 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart, fetchCart]);
 
-  const incrementItem = useCallback(
-    async (id) => {
-      console.log('🔼 CartContext: Incrementing item:', id);
+  const incrementItem = useCallback((id) => {
+    console.log('🔼 Increment - non-blocking');
 
-      const item = cart.find(i => i.id === id);
-      if (!item) {
-        console.error('❌ CartContext: Item not found:', id);
-        return;
-      }
+    const matchId = String(id);
+    const currentCart = Array.isArray(cartRef.current) ? cartRef.current : [];
+    const item = currentCart.find(i =>
+      String(i.id) === matchId ||
+      String(i.menuItemId ?? i.productId ?? '') === matchId,
+    );
+    if (!item) return;
 
-      const originalQuantity = item.quantity;
-      const newQuantity = originalQuantity + 1;
+    const resolvedId = item.id;
+    const newQty = toNumber(item.quantity, 1) + 1;
+    const unitPrice = item.price || item.basePrice || 0;
 
-      // Optimistic UI update - instant
-      console.log('⚡ Optimistic update:', originalQuantity, '→', newQuantity);
-      setCart(prev =>
-        prev.map(it =>
-          it.id === id ? { ...it, quantity: newQuantity } : it
-        )
-      );
+    pendingQuantities.current[resolvedId] = newQty;
 
+    // Optimistic update using functional state
+    setCart(prevCart =>
+      prevCart.map(it =>
+        String(it.id) === String(resolvedId)
+          ? { ...it, quantity: newQty, qty: newQty, totalPrice: unitPrice * newQty }
+          : it
+      )
+    );
+
+    // Debounce API call
+    if (quantityUpdateTimers.current[resolvedId]) {
+      clearTimeout(quantityUpdateTimers.current[resolvedId]);
+    }
+
+    quantityUpdateTimers.current[resolvedId] = setTimeout(async () => {
       try {
-        // API call immediately
-        console.log('📡 Sending increment API:', id);
-        const result = await updateItemQuantity(id, {
-          quantity: newQuantity,
-        });
-        console.log('✅ Increment success');
-        
+        console.log('📡 API sync increment');
+        const finalQty = pendingQuantities.current[resolvedId];
+        if (!Number.isFinite(finalQty)) return;
+        const result = await updateItemQuantity(resolvedId, { quantity: finalQty });
         if (result?.cart) {
-          await fetchCart();
+          const byId = new Map(
+            (result.cart.items || []).map(it => [String(it._id), it]),
+          );
+          setCart(prev =>
+            prev.map(it => {
+              const backend = byId.get(String(it.id));
+              if (!backend) return it;
+              const qty = toNumber(backend.quantity, it.quantity);
+              const price = it.price || it.basePrice || 0;
+              return {
+                ...it,
+                quantity: qty,
+                qty,
+                totalPrice: price * qty,
+              };
+            }),
+          );
+          setBackendCart(result.cart);
+          setBill(result.bill);
+          console.log('✅ Synced');
         }
-      } catch (error) {
-        console.error('❌ Increment failed:', error?.message);
-        // Rollback only on error
-        setCart(prev =>
-          prev.map(it =>
-            it.id === id ? { ...it, quantity: originalQuantity } : it
-          )
-        );
+      } catch (err) {
+        console.error('❌ Sync failed');
       }
-    },
-    [cart, fetchCart]
-  );
+    }, 350);
+  }, []);
 
-  const decrementItem = useCallback(
-    async (id) => {
-      console.log('🔽 CartContext: Decrementing item:', id);
+  const decrementItem = useCallback((id) => {
+    console.log('🔽 Decrement - non-blocking');
 
-      const item = cart.find(i => i.id === id);
-      if (!item) {
-        console.error('❌ CartContext: Item not found:', id);
-        return;
+    const matchId = String(id);
+    const currentCart = Array.isArray(cartRef.current) ? cartRef.current : [];
+    const item = currentCart.find(i =>
+      String(i.id) === matchId ||
+      String(i.menuItemId ?? i.productId ?? '') === matchId,
+    );
+    if (!item) return;
+
+    const resolvedId = item.id;
+    const currentQty = toNumber(item.quantity, 1);
+    const unitPrice = item.price || item.basePrice || 0;
+
+    if (currentQty <= 1) {
+      if (quantityUpdateTimers.current[resolvedId]) {
+        clearTimeout(quantityUpdateTimers.current[resolvedId]);
+        delete quantityUpdateTimers.current[resolvedId];
       }
-
-      const originalQuantity = item.quantity;
-
-      // If qty is 1, remove instead
-      if (originalQuantity <= 1) {
-        console.log('CartContext: Qty is 1, removing...');
-        await removeFromCart(id);
-        return;
-      }
-
-      const newQuantity = originalQuantity - 1;
-
-      // Optimistic UI update - instant
-      console.log('⚡ Optimistic update:', originalQuantity, '→', newQuantity);
-      setCart(prev =>
-        prev.map(it =>
-          it.id === id ? { ...it, quantity: newQuantity } : it
-        )
+      delete pendingQuantities.current[resolvedId];
+      setCart(prevCart =>
+        prevCart.filter(it => String(it.id) !== String(resolvedId))
       );
+      removeFromCart(resolvedId);
+      return;
+    }
 
+    const newQty = currentQty - 1;
+    pendingQuantities.current[resolvedId] = newQty;
+
+    setCart(prevCart =>
+      prevCart.map(it =>
+        String(it.id) === String(resolvedId)
+          ? { ...it, quantity: newQty, qty: newQty, totalPrice: unitPrice * newQty }
+          : it
+      )
+    );
+
+    // Debounce API call
+    if (quantityUpdateTimers.current[resolvedId]) {
+      clearTimeout(quantityUpdateTimers.current[resolvedId]);
+    }
+
+    quantityUpdateTimers.current[resolvedId] = setTimeout(async () => {
       try {
-        // API call immediately
-        console.log('📡 Sending decrement API:', id);
-        const result = await updateItemQuantity(id, {
-          quantity: newQuantity,
-        });
-        console.log('✅ Decrement success');
-        
+        console.log('📡 API sync decrement');
+        const finalQty = pendingQuantities.current[resolvedId];
+        if (!Number.isFinite(finalQty)) return;
+        const result = await updateItemQuantity(resolvedId, { quantity: finalQty });
         if (result?.cart) {
-          await fetchCart();
+          const byId = new Map(
+            (result.cart.items || []).map(it => [String(it._id), it]),
+          );
+          setCart(prev =>
+            prev.map(it => {
+              const backend = byId.get(String(it.id));
+              if (!backend) return it;
+              const qty = toNumber(backend.quantity, it.quantity);
+              const price = it.price || it.basePrice || 0;
+              return {
+                ...it,
+                quantity: qty,
+                qty,
+                totalPrice: price * qty,
+              };
+            }),
+          );
+          setBackendCart(result.cart);
+          setBill(result.bill);
+          console.log('✅ Synced');
         }
-      } catch (error) {
-        console.error('❌ Decrement failed:', error?.message);
-        // Rollback only on error
-        setCart(prev =>
-          prev.map(it =>
-            it.id === id ? { ...it, quantity: originalQuantity } : it
-          )
-        );
+      } catch (err) {
+        console.error('❌ Sync failed');
       }
-    },
-    [cart, fetchCart, removeFromCart]
-  );
+    }, 350);
+  }, [removeFromCart]);
 
   // Conflict Modal Handlers
   const handlePlaceCurrentOrder = useCallback(() => {
@@ -462,18 +518,27 @@ export const CartProvider = ({ children }) => {
   );
 
   const totals = useMemo(() => {
+    const localTotals = calculateCartTotals(cart);
     if (bill) {
+      const subtotal = toNumber(localTotals.subtotal, 0);
+      const discount = toNumber(bill.discount, 0);
+      const tax = toNumber(bill.tax, 0);
+      const delivery = toNumber(bill.deliveryFee, 0);
+      const packaging = toNumber(bill.packaging, 0);
+      const platformFee = toNumber(bill.platformFee, 0);
+      const grandTotal = subtotal + delivery + tax + packaging + platformFee - discount;
+
       return {
-        subtotal: bill.itemTotal || 0,
-        discount: bill.discount || 0,
-        tax: bill.tax || 0,
-        delivery: bill.deliveryFee || 0,
-        packaging: bill.packaging || 0,
-        platformFee: bill.platformFee || 0,
-        grandTotal: bill.toPay || 0,
+        subtotal,
+        discount,
+        tax,
+        delivery,
+        packaging,
+        platformFee,
+        grandTotal,
       };
     }
-    return calculateCartTotals(cart);
+    return localTotals;
   }, [cart, bill]);
 
   const cartState = useMemo(

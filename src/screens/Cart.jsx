@@ -1,11 +1,13 @@
-import React, { useContext, useMemo, useState, useCallback } from 'react';
+import React, { useContext, useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
+  Pressable,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Minus, Plus, Trash2 } from 'lucide-react-native';
@@ -50,6 +52,99 @@ function formatOptionsLine(item) {
   return parts.join(' • ');
 }
 
+const CartItemRow = React.memo(function CartItemRow({
+  item,
+  onIncrement,
+  onDecrement,
+  onDelete,
+  isDeleting,
+}) {
+  const itemId = item?.id ?? item?.menuItemId ?? item?.productId;
+  const imageSource =
+    item?.image && item.image.trim()
+      ? { uri: item.image }
+      : require('../assets/images/Food.png');
+  const optionsLine = formatOptionsLine(item);
+
+  return (
+    <View style={styles.itemCard}>
+      <Image source={imageSource} style={styles.itemImg} />
+
+      <View style={styles.qtyOverlay} pointerEvents="box-none">
+        <View style={styles.qtyWrap}>
+          <Pressable
+            onPress={() => onDecrement?.(itemId)}
+            style={styles.qtyBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            pressRetentionOffset={{ top: 20, bottom: 20, left: 20, right: 20 }}
+          >
+            <Minus size={14} color="#E53935" />
+          </Pressable>
+
+          <Text style={styles.qtyText}>{toNumber(item?.quantity, 1)}</Text>
+
+          <Pressable
+            onPress={() => onIncrement?.(itemId)}
+            style={styles.qtyBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            pressRetentionOffset={{ top: 20, bottom: 20, left: 20, right: 20 }}
+          >
+            <Plus size={14} color="#E53935" />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={2} style={styles.itemName}>
+          {item?.name}
+        </Text>
+        <Text style={styles.itemSubtitle}>Original</Text>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <TouchableOpacity style={styles.itemEdit}>
+            <Text style={styles.itemEditText}>Edit</Text>
+          </TouchableOpacity>
+          {!!optionsLine && (
+            <Text numberOfLines={2} style={styles.itemOptions}>
+              {optionsLine}
+            </Text>
+          )}
+
+          <View style={styles.itemBottomRow}>
+            <Text style={styles.itemPrice}>
+              ₹{toNumber(item?.totalPrice, 0)}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => onDelete?.(itemId, item?.name)}
+              style={[styles.trashBtn, isDeleting && styles.trashBtnDeleting]}
+              activeOpacity={0.85}
+              disabled={isDeleting}
+            >
+              <Trash2 size={16} color={isDeleting ? '#CCC' : '#777'} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.itemTotalsRow}>
+          <Text style={styles.itemTotalsText}>
+            Items Count : {toNumber(item?.quantity, 1)}
+          </Text>
+          <Text style={styles.itemTotalsText}>
+            Total Price : ₹{toNumber(item?.totalPrice, 0)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
 export default function CartScreen() {
   const navigation = useNavigation();
   const rootNav = navigation.getParent?.();
@@ -67,8 +162,20 @@ export default function CartScreen() {
   const [deleteItemName, setDeleteItemName] = useState('');
   const [isDeletingItem, setIsDeletingItem] = useState(false);
 
+  // Debug logging removed to keep taps responsive on device
+
   const groups = useMemo(() => groupByRestaurant(cart), [cart]);
   const hasItems = Array.isArray(cart) && cart.length > 0;
+
+  const handleIncrement = useCallback(
+    id => incrementItem?.(id),
+    [incrementItem],
+  );
+
+  const handleDecrement = useCallback(
+    id => decrementItem?.(id),
+    [decrementItem],
+  );
 
   // Handle delete confirmation
   const handleDeleteItem = (itemId, itemName) => {
@@ -76,6 +183,11 @@ export default function CartScreen() {
     setDeleteItemName(itemName);
     setDeleteModalVisible(true);
   };
+
+  const handleDelete = useCallback(
+    (itemId, itemName) => handleDeleteItem(itemId, itemName),
+    [],
+  );
 
   // Confirm delete action
   const handleConfirmDelete = useCallback(async () => {
@@ -185,90 +297,21 @@ export default function CartScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {group.items.map(ci => (
-                    <View key={ci.id} style={styles.itemCard}>
-                      <Image
-                        source={ci.image && ci.image.trim() ? { uri: ci.image } : require('../assets/images/Food.png')}
-                        style={styles.itemImg}
+                  {group.items.map(ci => {
+                    const itemId = ci?.id ?? ci?.menuItemId ?? ci?.productId ?? ci?.name;
+                    return (
+                      <CartItemRow
+                        key={String(itemId)}
+                        item={ci}
+                        onIncrement={handleIncrement}
+                        onDecrement={handleDecrement}
+                        onDelete={handleDelete}
+                        isDeleting={
+                          String(deletingItemId ?? '') === String(itemId ?? '')
+                        }
                       />
-
-                      <View style={styles.qtyOverlay}>
-                        <View style={styles.qtyWrap}>
-                          <TouchableOpacity
-                            onPress={() => {
-                              const itemId = ci.cartLineId ?? ci.id;
-                              console.log('🔽 Cart: Decrementing item:', itemId, 'Name:', ci.name);
-                              decrementItem(itemId);
-                            }}
-                            style={styles.qtyBtn}
-                            activeOpacity={0.85}
-                          >
-                            <Minus size={14} color="#E53935" />
-                          </TouchableOpacity>
-
-                          <Text style={styles.qtyText}>
-                            {toNumber(ci.quantity, 1)}
-                          </Text>
-
-                          <TouchableOpacity
-                            onPress={() => {
-                              const itemId = ci.cartLineId ?? ci.id;
-                              console.log('🔼 Cart: Incrementing item:', itemId, 'Name:', ci.name);
-                              incrementItem(itemId);
-                            }}
-                            style={styles.qtyBtn}
-                            activeOpacity={0.85}
-                          >
-                            <Plus size={14} color="#E53935" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text numberOfLines={2} style={styles.itemName}>
-                          {ci.name}
-                        </Text>
-                        <Text style={styles.itemSubtitle}>Original</Text>
-                        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <TouchableOpacity style={styles.itemEdit}>
-                            <Text style={styles.itemEditText}>Edit</Text>
-                          </TouchableOpacity>
-                          {!!formatOptionsLine(ci) && (
-                            <Text numberOfLines={2} style={styles.itemOptions}>
-                              {formatOptionsLine(ci)}
-                            </Text>
-                          )}
-
-                          <View style={styles.itemBottomRow}>
-                            <Text style={styles.itemPrice}>
-                              ₹{toNumber(ci.totalPrice, 0)}
-                            </Text>
-
-                            <TouchableOpacity
-                              onPress={() => handleDeleteItem(ci.cartLineId ?? ci.id, ci.name)}
-                              style={[styles.trashBtn, deletingItemId === (ci.cartLineId ?? ci.id) && styles.trashBtnDeleting]}
-                              activeOpacity={0.85}
-                              disabled={deletingItemId === (ci.cartLineId ?? ci.id)}
-                            >
-                              <Trash2 
-                                size={16} 
-                                color={deletingItemId === (ci.cartLineId ?? ci.id) ? '#CCC' : '#777'} 
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-
-                        <View style={styles.itemTotalsRow}>
-                          <Text style={styles.itemTotalsText}>
-                            Items Count : {toNumber(ci.quantity, 1)}
-                          </Text>
-                          <Text style={styles.itemTotalsText}>
-                            Total Price : ₹{toNumber(ci.totalPrice, 0)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
+                    );
+                  })}
 
                   <TouchableOpacity style={styles.addMore} onPress={() => navigation.goBack()}>
                     <Text style={styles.addMoreText}>+ Add More Items</Text>
@@ -511,6 +554,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 12,
     top: 10,
+    zIndex: 5,
+    elevation: 5,
   },
   itemImg: { width: 56, height: 56, borderRadius: 12, marginRight: 12 },
   itemName: { fontWeight: '900', color: '#111', fontSize: 13 },
@@ -540,18 +585,19 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   qtyBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
     backgroundColor: '#FFECEC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   qtyText: {
-    width: 20,
+    minWidth: 24,
     textAlign: 'center',
     fontWeight: '900',
     color: '#E53935',
+    fontSize: 13,
   },
   itemPrice: { marginLeft: 10, fontWeight: '900', color: '#111' },
   trashBtn: { marginLeft: 10, padding: 6 },

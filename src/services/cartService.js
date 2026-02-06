@@ -109,21 +109,36 @@ export const removeItemFromCart = async (itemId) => {
 /**
  * Update item quantity via dedicated endpoint
  * @param {string} itemId
- * @param {Object} payload - { action?: 'increase'|'decrease', quantity?: number }
+ * @param {Object} payload - { action: 'increase'|'decrease' } OR { quantity: number }
  */
 export const updateItemQuantity = async (itemId, payload) => {
   try {
     const endpoint = CART_ROUTES.updateQuantity.replace(':itemId', itemId);
+    
+    // Backend requires itemId in body as well as URL
     const requestBody = {
       itemId,
-      ...payload,
+      ...payload
     };
-    console.log('Updating item quantity:', { endpoint, itemId, requestBody });
+    
+    console.log('📤 cartService: Updating quantity:', { 
+      endpoint, 
+      itemId, 
+      requestBody 
+    });
+    
     const response = await apiClient.patch(endpoint, requestBody);
-    console.log('Item quantity updated:', response.data);
+    
+    console.log('✅ cartService: Quantity updated successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Update quantity failed:', error?.message, error?.response?.status, 'for itemId:', itemId);
+    console.error('❌ cartService: Update quantity failed:', {
+      itemId,
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data
+    });
+    
     // Enhanced error message
     if (error?.response?.status === 404) {
       const err = new Error('Item not found in cart');
