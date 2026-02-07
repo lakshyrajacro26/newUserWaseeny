@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { CartContext } from '../context/CartContext';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
+import AddToCartDrawer from '../components/AddToCartDrawer';
 import { toNumber } from '../services/cartPricing';
 
 function groupByRestaurant(cart) {
@@ -57,11 +58,12 @@ const CartItemRow = React.memo(function CartItemRow({
   onIncrement,
   onDecrement,
   onDelete,
+  onEdit,
   isDeleting,
 }) {
   const itemId = item?.id ?? item?.menuItemId ?? item?.productId;
   const imageSource =
-    item?.image && item.image.trim()
+    item?.image && typeof item.image === 'string' && item.image.trim()
       ? { uri: item.image }
       : require('../assets/images/Food.png');
   const optionsLine = formatOptionsLine(item);
@@ -107,9 +109,6 @@ const CartItemRow = React.memo(function CartItemRow({
             justifyContent: 'space-between',
           }}
         >
-          <TouchableOpacity style={styles.itemEdit}>
-            <Text style={styles.itemEditText}>Edit</Text>
-          </TouchableOpacity>
           {!!optionsLine && (
             <Text numberOfLines={2} style={styles.itemOptions}>
               {optionsLine}
@@ -161,6 +160,8 @@ export default function CartScreen() {
   const [deletingItemId, setDeletingItemId] = useState(null);
   const [deleteItemName, setDeleteItemName] = useState('');
   const [isDeletingItem, setIsDeletingItem] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
 
   // Debug logging removed to keep taps responsive on device
 
@@ -188,6 +189,31 @@ export default function CartScreen() {
     (itemId, itemName) => handleDeleteItem(itemId, itemName),
     [],
   );
+
+  // Handle edit item
+  const handleEdit = useCallback((item) => {
+    setSelectedItem({
+      id: item.menuItemId || item.productId || item.id,
+      name: item.name,
+      image: item.image,
+      price: item.basePrice || item.price,
+      basePrice: item.basePrice || item.price,
+      description: item.description || '',
+      variations: item.variations || [],
+      addOns: item.addOns || [],
+      flavors: item.selectedFlavor ? [item.selectedFlavor] : [],
+    });
+    setSelectedRestaurant(item.restaurant || {
+      id: item.restaurantId,
+      _id: item.restaurantId,
+      name: item.restaurantName,
+    });
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setSelectedItem(null);
+    setSelectedRestaurant(null);
+  }, []);
 
   // Confirm delete action
   const handleConfirmDelete = useCallback(async () => {
@@ -232,12 +258,16 @@ export default function CartScreen() {
   );
   const [appliedCouponId, setAppliedCouponId] = useState(null);
 
-  const delivery = 0;
-  const tax = 0;
+  const delivery = toNumber(totals?.delivery, 0);
+  const tax = toNumber(totals?.tax, 0);
   const subtotal = toNumber(totals?.subtotal, 0);
+  const platformFee = toNumber(totals?.platformFee, 0);
+  const packaging = toNumber(totals?.packaging, 0);
+  const smallCartFee = toNumber(totals?.smallCartFee, 0);
   const appliedCoupon = coupons.find(c => c.id === appliedCouponId) || null;
   const discount = appliedCoupon ? Math.min(appliedCoupon.amount, subtotal) : 0;
-  const grandTotal = subtotal + delivery + tax - discount;
+  const totalBeforeTax = subtotal + delivery + packaging + smallCartFee - discount + platformFee;
+  const grandTotal = Math.max(0, totalBeforeTax + tax);
   const estimatedDelivery = 'Standard (20-35 minutes)';
 
   return (
@@ -306,6 +336,7 @@ export default function CartScreen() {
                         onIncrement={handleIncrement}
                         onDecrement={handleDecrement}
                         onDelete={handleDelete}
+                        onEdit={handleEdit}
                         isDeleting={
                           String(deletingItemId ?? '') === String(itemId ?? '')
                         }
@@ -363,30 +394,53 @@ export default function CartScreen() {
 
                   <View style={styles.billBox}>
                     <Text style={styles.billTitle}>Bill Details</Text>
+                    
                     <View style={styles.billRow}>
                       <Text style={styles.billLabel}>Subtotal</Text>
-                      <Text style={styles.billValue}>₹{subtotal}</Text>
+                      <Text style={styles.billValue}>₹{subtotal.toFixed(2)}</Text>
                     </View>
+
                     <View style={styles.billRow}>
-                      <Text style={styles.billLabel}>Standard Delivery</Text>
-                      <Text style={styles.billFree}>Free</Text>
+                      <Text style={styles.billLabel}>Delivery Fee</Text>
+                      <Text style={delivery > 0 ? styles.billValue : styles.billFree}>
+                        {delivery > 0 ? `₹${delivery.toFixed(2)}` : 'Free'}
+                      </Text>
                     </View>
+
                     <View style={styles.billRow}>
-                      <Text style={styles.billLabel}>Service Fee</Text>
+                      <Text style={styles.billLabel}>Tax</Text>
                       <Text style={styles.billValue}>₹{tax.toFixed(2)}</Text>
                     </View>
+
                     <View style={styles.billRow}>
-                      <Text style={styles.billLabel}>Offer Applied</Text>
-                      <Text style={styles.billDiscount}>
-                        -₹{discount.toFixed(2)}
-                      </Text>
+                      <Text style={styles.billLabel}>Packaging</Text>
+                      <Text style={styles.billValue}>₹{packaging.toFixed(2)}</Text>
                     </View>
+
+                    <View style={styles.billRow}>
+                      <Text style={styles.billLabel}>Service Fee</Text>
+                      <Text style={styles.billValue}>₹{platformFee.toFixed(2)}</Text>
+                    </View>
+
+                    {smallCartFee > 0 && (
+                      <View style={styles.billRow}>
+                        <Text style={styles.billLabel}>Small Cart Fee</Text>
+                        <Text style={styles.billValue}>₹{smallCartFee.toFixed(2)}</Text>
+                      </View>
+                    )}
+
+                    {discount > 0 && (
+                      <View style={styles.billRow}>
+                        <Text style={styles.billLabel}>Offer Applied</Text>
+                        <Text style={styles.billDiscount}>-₹{discount.toFixed(2)}</Text>
+                      </View>
+                    )}
+
                     <View style={styles.billDivider} />
+
                     <View style={styles.billRow}>
                       <Text style={styles.billTotal}>Grand Total</Text>
-                      <Text style={styles.billTotal}>
-                        ₹{grandTotal.toFixed(2)}
-                      </Text>
+                      <Text style={styles.billTotal}>₹{grandTotal.toFixed(2)}</Text>
                     </View>
                   </View>
 
@@ -470,6 +524,17 @@ export default function CartScreen() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
+
+      {selectedItem && selectedRestaurant && (
+        <AddToCartDrawer
+          visible={!!selectedItem}
+          item={selectedItem}
+          restaurant={selectedRestaurant}
+          onClose={closeDrawer}
+          currencySymbol="₹"
+          onAddToCart={closeDrawer}
+        />
+      )}
     </SafeAreaView>
   );
 }

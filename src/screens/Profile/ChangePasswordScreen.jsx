@@ -1,18 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
-  TextInput,
   TouchableOpacity,
   Dimensions,
   StatusBar,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialTextInput from '../../components/input/MaterialTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
+import apiClient from '../../config/apiClient';
+import { USER_ROUTES } from '../../config/routes';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,6 +25,60 @@ const s = v => v * SCALE;
 
 const ChangePasswordScreen = () => {
   const navigation = useNavigation();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validate = () => {
+    const nextErrors = {};
+
+    if (!currentPassword.trim()) {
+      nextErrors.currentPassword = 'Current password is required';
+    }
+
+    if (!newPassword.trim()) {
+      nextErrors.newPassword = 'New password is required';
+    }
+
+    if (!confirmPassword.trim()) {
+      nextErrors.confirmPassword = 'Please confirm your new password';
+    } else if (newPassword && confirmPassword !== newPassword) {
+      nextErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!validate()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await apiClient.put(USER_ROUTES.changePassword, {
+        currentPassword,
+        newPassword,
+      });
+
+      Alert.alert('Success', 'Password updated successfully!', [
+        {
+          text: 'OK',
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || 'Failed to update password';
+      Alert.alert('Error', message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -44,37 +100,45 @@ const ChangePasswordScreen = () => {
       <View style={styles.inputBlock}>
         <MaterialTextInput
           label="Current Password"
-          // value={'..'}
-          // onChangeText={setNewPassword}
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
           placeholder="........"
           showPasswordToggle
-        // error={!!newPasswordError}
-        // errorText={newPasswordError}
+          error={!!errors.currentPassword}
+          errorText={errors.currentPassword}
         />
         <MaterialTextInput
           label="New Password"
-          // value={'..'}
-          // onChangeText={setNewPassword}
+          value={newPassword}
+          onChangeText={setNewPassword}
           placeholder="........"
           showPasswordToggle
-        // error={!!newPasswordError}
-        // errorText={newPasswordError}
+          error={!!errors.newPassword}
+          errorText={errors.newPassword}
         />
 
         <MaterialTextInput
           label="Confirm New Password"
-          // value={'..'}
-          // onChangeText={setNewPassword}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
           placeholder="........"
           showPasswordToggle
-        // error={!!newPasswordError}
-        // errorText={newPasswordError}
+          error={!!errors.confirmPassword}
+          errorText={errors.confirmPassword}
         />
       </View>
 
       {/* Button */}
-      <TouchableOpacity style={styles.button}>
-        <Text style={styles.buttonText}>Update Password</Text>
+      <TouchableOpacity
+        style={[styles.button, isSubmitting && styles.buttonDisabled]}
+        onPress={handleUpdatePassword}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator color="#FFFFFF" size="small" />
+        ) : (
+          <Text style={styles.buttonText}>Update Password</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -162,6 +226,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: s(26),
+  },
+  buttonDisabled: {
+    backgroundColor: '#C7C7C7',
   },
 
   buttonText: {

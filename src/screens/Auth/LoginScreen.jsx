@@ -23,7 +23,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('lakshykod@gmail.com');
-  const [password, setPassword] = useState('Hii@12345');
+  const [password, setPassword] = useState('Hii@123456');
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');

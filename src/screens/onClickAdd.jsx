@@ -19,6 +19,12 @@ export default function ProductDetail() {
 
   const [qty, setQty] = useState(1);
   const { addToCart } = useContext(CartContext);
+  const ratingValue = typeof item?.rating === 'number'
+    ? item.rating
+    : (item?.rating?.average ?? 0);
+  const reviewsCount = typeof item?.rating?.count === 'number'
+    ? item.rating.count
+    : (item?.reviews ?? 0);
 
   if (!item) return null;
 
@@ -48,7 +54,7 @@ export default function ProductDetail() {
 
         {/* RATING */}
         <Text style={styles.rating}>
-          ⭐ {item.rating} ({item.reviews})
+          ⭐ {ratingValue} ({reviewsCount})
         </Text>
 
         {/* CUISINES */}

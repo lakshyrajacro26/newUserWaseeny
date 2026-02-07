@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Heart, Tag, Wallet } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import DeleteAccountPopUp from './DeleteAccountPopUp';
+import LoadingModal from '../../components/LoadingModal';
+import apiClient from '../../config/apiClient';
+import { USER_ROUTES } from '../../config/routes';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +24,9 @@ export default function ProfileHome() {
   const navigation = useNavigation();
   const { logout } = useAuth();
   const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   const rootNavigation = useMemo(() => {
     let current = navigation;
@@ -34,13 +41,43 @@ export default function ProfileHome() {
   /**
    * PRODUCTION LOGOUT HANDLER:
    * 
-   * 1. Clear auth token from AsyncStorage and in-memory state
-   * 2. Reset navigation to LoginScreen
-   * 3. This triggers AuthContext.isAuthenticated = false
-   * 4. AppNavigator conditionally removes MainTabs and shows LoginScreen
+   * 1. Show loading modal
+   * 2. Call logout API endpoint
+   * 3. Clear auth token from AsyncStorage and in-memory state
+   * 4. Reset navigation to LoginScreen
+   * 5. This triggers AuthContext.isAuthenticated = false
+   * 6. AppNavigator conditionally removes MainTabs and shows LoginScreen
    */
+  // Fetch user profile
+  const fetchUserProfile = async () => {
+    try {
+      setIsLoadingProfile(true);
+      const response = await apiClient.get(USER_ROUTES.profile);
+      const user = response?.data?.user || response?.data;
+      setUserData(user);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  // Fetch profile on mount
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  // Refetch when screen comes into focus (after editing profile)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserProfile();
+    }, [])
+  );
+
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
+
       // Clear token from AsyncStorage and auth state
       await logout();
 
@@ -53,11 +90,13 @@ export default function ProfileHome() {
       );
     } catch (error) {
       console.error('Logout failed:', error);
+      setIsLoggingOut(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <LoadingModal visible={isLoggingOut} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -70,12 +109,22 @@ export default function ProfileHome() {
         <View style={styles.ImageContainer}>
           <View style={styles.avatarWrapper}>
             <Image
-              source={require('../../assets/icons/user.png')}
+              source={
+                userData?.profilePic
+                  ? { uri: userData.profilePic }
+                  : require('../../assets/icons/user.png')
+              }
               style={styles.avatar}
             />
           </View>
-          <Text style={styles.name}>Khalid AlMubarak</Text>
-          <Text style={styles.phone}>📞 +966 548439406</Text>
+          {isLoadingProfile ? (
+            <ActivityIndicator color="#E41C26" style={{ marginTop: 12 }} />
+          ) : (
+            <>
+              <Text style={styles.name}>{userData?.name || 'User'}</Text>
+              <Text style={styles.phone}>📞 {userData?.mobile || 'N/A'}</Text>
+            </>
+          )}
         </View>
         <View style={styles.quickActionsContainer}>
 
@@ -114,7 +163,9 @@ export default function ProfileHome() {
             </View>
             <Text style={styles.walletText}>Wallet</Text>
           </View>
-          <Text style={styles.walletAmount}>0.00</Text>
+          <Text style={styles.walletAmount}>
+            {userData?.walletBalance?.toFixed(2) || '0.00'}
+          </Text>
         </TouchableOpacity>
 
         {/* Account Section */}

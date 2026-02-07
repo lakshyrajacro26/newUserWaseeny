@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,27 +6,77 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  Animated,
+  Dimensions,
+  BackHandler,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = React.useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setShouldRender(false);
+      return undefined;
+    }
+
+    // Reset to initial position
+    overlayOpacity.setValue(0);
+    translateY.setValue(SCREEN_HEIGHT);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            stiffness: 220,
+            damping: 28,
+            mass: 0.9,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => true,
+    );
+    return () => backHandler.remove();
+  }, [visible, overlayOpacity, translateY]);
+
   if (!coupon) return null;
+  if (!shouldRender) return null;
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+      <View style={styles.modalRoot}>
+        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+        </Animated.View>
 
-        <View style={styles.drawer}>
+        <Animated.View style={[styles.drawer, { transform: [{ translateY }] }]}>
           {/* Close Button */}
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <X size={24} color="#111" />
@@ -80,7 +130,7 @@ const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
               <Text style={styles.useNowText}>Use Now</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -94,10 +144,13 @@ const TermItem = ({ text }) => (
 );
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   backdrop: {
     flex: 1,

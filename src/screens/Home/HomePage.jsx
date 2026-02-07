@@ -17,8 +17,8 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { foodOptions } from '../../Data/foodOptions';
 import apiClient from '../../config/apiClient';
+import { USER_ROUTES } from '../../config/routes';
 import { getHomeData } from '../../services/homeService';
 import Geolocation from '@react-native-community/geolocation';
 import {
@@ -37,6 +37,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 
 
+const getRatingAverage = item => {
+  if (typeof item?.rating?.average === 'number') return item.rating.average;
+  if (typeof item?.ratingAverage === 'number') return item.ratingAverage;
+  if (typeof item?.rating === 'number') return item.rating;
+  if (typeof item?.rating?.average === 'string') {
+    const avg = Number(item.rating.average);
+    return Number.isFinite(avg) ? avg : 0;
+  }
+  if (typeof item?.rating === 'string') {
+    const avg = Number(item.rating);
+    return Number.isFinite(avg) ? avg : 0;
+  }
+  return 0;
+};
+
+const getRatingCount = item => {
+  if (typeof item?.ratingCount === 'number') return item.ratingCount;
+  if (typeof item?.rating?.count === 'number') return item.rating.count;
+  if (typeof item?.rating?.count === 'string') {
+    const count = Number(item.rating.count);
+    return Number.isFinite(count) ? count : 0;
+  }
+  return item?.ratingCount || 0;
+};
+
 const RestaurantListCard = memo(({ 
   item, 
   isFavorite, 
@@ -51,8 +76,8 @@ const RestaurantListCard = memo(({
     : 'Pizza, Italian, Fast Food';
   const distanceText = item?.distance || null;
   const timeText = item?.deliveryTime ? `${item.deliveryTime} minutes` : '20 - 30 minutes';
-  const ratingValue = item?.rating ?? 0;
-  const ratingCount = item?.ratingCount || 0;
+  const ratingValue = getRatingAverage(item);
+  const ratingCount = getRatingCount(item);
   const bestSellerText = item?.bestSeller || 'Popular choice';
 
   return (
@@ -154,6 +179,14 @@ const SkeletonRecommendCard = memo(() => (
   </View>
 ));
 
+// Skeleton loader component for food category items
+const SkeletonFoodItem = memo(() => (
+  <View style={styles.foodItem}>
+    <View style={[styles.foodImage, { backgroundColor: '#E8E8E8' }]} />
+    <View style={{ height: 12, backgroundColor: '#E8E8E8', borderRadius: 3, marginTop: 8, width: '80%' }} />
+  </View>
+));
+
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -172,6 +205,10 @@ export default function HomeScreen() {
   const [pageNum, setPageNum] = useState(0);
   const itemsPerPage = 8;
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [addressLabel, setAddressLabel] = useState('Home');
+  const [addressLine, setAddressLine] = useState('loading address...');
   const { cartCount } = useContext(CartContext);
 
   // Request location permission with proper dialog
@@ -304,6 +341,18 @@ export default function HomeScreen() {
 
   // Process home data and update state
   const processHomeData = (data) => {
+    // Set categories from API
+    if (data?.categories && Array.isArray(data.categories)) {
+      const formattedCategories = data.categories.map(cat => ({
+        id: cat._id || cat.id,
+        name: cat.name,
+        title: cat.name,
+        image: cat.image ? { uri: cat.image } : require('../../assets/images/Food.png'),
+      }));
+      setCategories(formattedCategories);
+      setIsLoadingCategories(false);
+    }
+
     // Set banners
     if (data?.banners && Array.isArray(data.banners)) {
       setBanners(data.banners.filter(b => b?.isActive !== false));
@@ -340,7 +389,8 @@ export default function HomeScreen() {
         image: item.image || '',
         bannerImage: item.bannerImage || '',
         coverImage: item.bannerImage || item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
-        rating: item.rating || 4.5,
+        ratingAverage: getRatingAverage(item),
+        ratingCount: getRatingCount(item),
         deliveryTime: item.deliveryTime
           ? `${item.deliveryTime} mins`
           : '30 - 40 mins',
@@ -358,6 +408,37 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchHomeData();
+  }, []);
+
+  // Fetch user address
+  useEffect(() => {
+    const fetchUserAddress = async () => {
+      try {
+        const response = await apiClient.get(USER_ROUTES.profile);
+        const user = response?.data?.user || response?.data;
+        
+        // Extract address from savedAddresses array
+        if (user?.savedAddresses && user.savedAddresses.length > 0) {
+          // First, look for the default address (isDefault: true)
+          const defaultAddress = user.savedAddresses.find(addr => addr.isDefault === true);
+          
+          if (defaultAddress) {
+            setAddressLabel(defaultAddress.label);
+            setAddressLine(defaultAddress.addressLine);
+          } else {
+            // If no default, use the first address
+            const firstAddress = user.savedAddresses[0];
+            setAddressLabel(firstAddress.label);
+            setAddressLine(firstAddress.addressLine);
+          }
+        }
+      } catch (error) {
+        console.warn('Error fetching user address:', error);
+        // Fallback to default address kept as is
+      }
+    };
+    
+    fetchUserAddress();
   }, []);
 
   // Load more restaurants when user scrolls
@@ -446,8 +527,10 @@ export default function HomeScreen() {
                 <View style={styles.headerLeft}>
                   <MapPin size={18} color="#111111" />
                   <View style={styles.addressBlock}>
-                    <Text style={styles.homeLabel}>Home</Text>
-                    <Text style={styles.location}>13 Amsterdam st</Text>
+                    <Text style={styles.homeLabel}>{addressLabel}</Text>
+                    <Text style={styles.location} numberOfLines={1}>
+                      {addressLine}
+                    </Text>
                   </View>
                 </View>
 
@@ -556,19 +639,52 @@ export default function HomeScreen() {
           ) : (
             <>
               {/* FOOD CATEGORIES */}
-              <FlatList
-                horizontal
-                data={foodOptions}
-                keyExtractor={item => item.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.foodList}
-                renderItem={({ item }) => (
-                  <View style={styles.foodItem}>
-                    <Image source={item.image} style={styles.foodImage} />
-                    <Text style={styles.foodTitle}>{item.title}</Text>
-                  </View>
-                )}
-              />
+              {isLoadingCategories ? (
+                <FlatList
+                  horizontal
+                  data={Array(5).fill(null)}
+                  keyExtractor={(_, index) => `skeleton-food-${index}`}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.foodList}
+                  renderItem={() => <SkeletonFoodItem />}
+                />
+              ) : categories.length > 0 ? (
+                <FlatList
+                  horizontal
+                  data={categories}
+                  keyExtractor={item => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.foodList}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.foodItem}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        const tabNav = navigation.getParent?.();
+                        if (tabNav?.navigate) {
+                          tabNav.navigate('Search', {
+                            screen: 'SearchHome',
+                            params: { 
+                              autoFocus: true,
+                              category: item.name,
+                              initialQuery: item.name 
+                            },
+                          });
+                        } else {
+                          navigation.navigate('SearchHome', {
+                            autoFocus: true,
+                            category: item.name,
+                            initialQuery: item.name 
+                          });
+                        }
+                      }}
+                    >
+                      <Image source={item.image} style={styles.foodImage} />
+                      <Text style={styles.foodTitle}>{item.title}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              ) : null}
 
               {/* PROMO (X-axis scroll) */}
               {promoCards.length > 0 && (
@@ -639,8 +755,8 @@ export default function HomeScreen() {
                         : 'Pizza, Italian, Fast Food';
                       const distanceText = item?.distance || null;
                       const timeText = item?.deliveryTime ? `${item.deliveryTime} minutes` : '20 - 30 minutes';
-                      const ratingValue = item?.rating ?? 0;
-                      const ratingCount = item?.ratingCount || 0;
+                      const ratingValue = getRatingAverage(item);
+                      const ratingCount = getRatingCount(item);
                       const bestSellerText =
                         item?.bestSeller || 'Popular choice';
                       const isFavorite = favorites.has(item.id);

@@ -110,6 +110,7 @@ export default function AddToCartDrawer({
   const translateY = useRef(new Animated.Value(sheetHeight)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const openedAtRef = useRef(0);
+  const [shouldRender, setShouldRender] = useState(false);
 
   const [quantity, setQuantity] = useState(1);
   const [selectedFlavorId, setSelectedFlavorId] = useState(null);
@@ -121,7 +122,7 @@ export default function AddToCartDrawer({
   const [showAllTogether, setShowAllTogether] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { addToCart } = useContext(CartContext);
+  const { addToCart, freshCartResolvedAt } = useContext(CartContext);
 
   const basePrice = useMemo(() => toNumber(item?.price ?? 0, 0), [item]);
   const flavors = useMemo(() => normalizeFlavors(item), [item]);
@@ -144,6 +145,13 @@ export default function AddToCartDrawer({
     setShowAllFlavors(false);
     setShowAllTogether(false);
   }, [visible, item, flavors]);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (freshCartResolvedAt) {
+      onClose?.();
+    }
+  }, [freshCartResolvedAt, visible, onClose]);
 
   const selectedFlavor = useMemo(() => {
     if (!selectedFlavorId) return null;
@@ -208,16 +216,23 @@ export default function AddToCartDrawer({
   };
 
   useEffect(() => {
-    if (visible) {
-      openedAtRef.current = Date.now();
-      // Ensure initial positions
-      translateY.setValue(sheetHeight);
-      overlayOpacity.setValue(0);
-      animateOpen();
-    } else {
-      overlayOpacity.setValue(0);
-      translateY.setValue(sheetHeight);
+    if (!visible) {
+      setShouldRender(false);
+      return;
     }
+
+    openedAtRef.current = Date.now();
+    // Reset to initial position
+    translateY.setValue(sheetHeight);
+    overlayOpacity.setValue(0);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        animateOpen();
+      });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
@@ -354,6 +369,7 @@ export default function AddToCartDrawer({
   );
 
   if (!visible) return null;
+  if (!shouldRender) return null;
 
   return (
     <Modal

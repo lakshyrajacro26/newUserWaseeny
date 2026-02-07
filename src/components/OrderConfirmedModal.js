@@ -21,26 +21,40 @@ export default function OrderConfirmedModal({
 }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = React.useState(false);
 
   const safeOrderId = useMemo(() => orderId || '—', [orderId]);
 
   useEffect(() => {
-    if (!visible) return undefined;
+    if (!visible) {
+      setShouldRender(false);
+      return undefined;
+    }
 
-    Animated.parallel([
-      Animated.timing(overlayOpacity, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.spring(translateY, {
-        toValue: 0,
-        stiffness: 220,
-        damping: 26,
-        mass: 0.9,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Reset to initial position
+    overlayOpacity.setValue(0);
+    translateY.setValue(SCREEN_HEIGHT);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 220,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            stiffness: 220,
+            damping: 26,
+            mass: 0.9,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
 
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -55,6 +69,8 @@ export default function OrderConfirmedModal({
     overlayOpacity.setValue(0);
     translateY.setValue(SCREEN_HEIGHT);
   }, [overlayOpacity, translateY, visible]);
+
+  if (!shouldRender) return null;
 
   return (
     <Modal

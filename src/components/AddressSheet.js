@@ -32,6 +32,7 @@ export default function AddressSheet({
 }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = React.useState(false);
 
   const list = useMemo(
     () => (Array.isArray(addresses) ? addresses : []),
@@ -77,22 +78,35 @@ export default function AddressSheet({
   }, [list, selectedAddressId, visible]);
 
   useEffect(() => {
-    if (!visible) return undefined;
+    if (!visible) {
+      setShouldRender(false);
+      return undefined;
+    }
 
-    Animated.parallel([
-      Animated.timing(overlayOpacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.spring(translateY, {
-        toValue: 0,
-        stiffness: 220,
-        damping: 28,
-        mass: 0.9,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Reset to initial position
+    overlayOpacity.setValue(0);
+    translateY.setValue(SCREEN_HEIGHT);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            stiffness: 220,
+            damping: 28,
+            mass: 0.9,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
 
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -220,6 +234,8 @@ export default function AddressSheet({
       }
     }
   };
+
+  if (!shouldRender) return null;
 
   return (
     <Modal

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -7,9 +7,14 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
+  Animated,
+  Dimensions,
+  BackHandler,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const RATINGS = [5, 4, 3, 2, 1];
 const DELIVERY_TIMES = [
@@ -37,6 +42,10 @@ export default function FilterBottomSheet({
   onApply,
   initialFilters,
 }) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = React.useState(false);
+
   const [rating, setRating] = useState(initialFilters?.rating || null);
   const [deliveryTime, setDeliveryTime] = useState(
     initialFilters?.deliveryTime || null,
@@ -46,6 +55,44 @@ export default function FilterBottomSheet({
   const [price, setPrice] = useState(
     initialFilters?.price || { min: PRICE_MIN, max: PRICE_MAX },
   );
+
+  useEffect(() => {
+    if (!visible) {
+      setShouldRender(false);
+      return undefined;
+    }
+
+    // Reset to initial position
+    overlayOpacity.setValue(0);
+    translateY.setValue(SCREEN_HEIGHT);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            stiffness: 220,
+            damping: 28,
+            mass: 0.9,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => true,
+    );
+    return () => backHandler.remove();
+  }, [visible, overlayOpacity, translateY]);
 
   const clearAll = () => {
     setRating(null);
@@ -68,15 +115,20 @@ export default function FilterBottomSheet({
     onClose();
   };
 
+  if (!shouldRender) return null;
+
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       transparent
       onRequestClose={onClose}
     >
-      <Pressable style={styles.dimArea} onPress={onClose} />
-      <View style={styles.sheet}>
+      <View style={styles.modalRoot}>
+        <Animated.View style={[styles.dimArea, { opacity: overlayOpacity }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        </Animated.View>
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
         <SafeAreaView style={{flex:1}} edges={['top','bottom']}>
         <View style={styles.header}>
           <Text style={styles.title}>Filters</Text>
@@ -186,21 +238,22 @@ export default function FilterBottomSheet({
           </TouchableOpacity>
         </View>
         </SafeAreaView>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  dimArea: {
+  modalRoot: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  dimArea: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

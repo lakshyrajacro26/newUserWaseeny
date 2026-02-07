@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Animated,
+  BackHandler,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -17,15 +19,58 @@ export const DeleteConfirmationModal = ({
   onCancel,
   isDeleting,
 }) => {
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.8)).current;
+  const [shouldRender, setShouldRender] = React.useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setShouldRender(false);
+      return undefined;
+    }
+
+    // Reset to initial state
+    overlayOpacity.setValue(0);
+    scale.setValue(0.8);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scale, {
+            toValue: 1,
+            stiffness: 220,
+            damping: 20,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => true,
+    );
+    return () => backHandler.remove();
+  }, [visible, overlayOpacity, scale]);
+
+  if (!shouldRender) return null;
+
   return (
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType="none"
       onRequestClose={onCancel}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+      <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+        <Animated.View style={[styles.modalContainer, { transform: [{ scale }] }]}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Remove Item</Text>
@@ -60,8 +105,8 @@ export const DeleteConfirmationModal = ({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };

@@ -1,6 +1,25 @@
 import apiClient from '../config/apiClient';
 import { ORDER_ROUTES } from '../config/routes';
 
+export const getOrders = async () => {
+  try {
+    const response = await apiClient.get(ORDER_ROUTES.getOrders);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getOrderById = async (orderId) => {
+  try {
+    const url = ORDER_ROUTES.getOrderById.replace(':id', orderId);
+    const response = await apiClient.get(url);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const placeOrder = async orderData => {
   try {
     const response = await apiClient.post(ORDER_ROUTES.placeOrder, orderData);

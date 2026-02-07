@@ -62,7 +62,14 @@ export default function RestaurantDetail() {
             ...data,
             id: data._id,
             name: data.name?.en || prev.name,
-            rating: data.rating,
+            ratingAverage: typeof data?.rating?.average === 'number'
+              ? data.rating.average
+              : typeof data?.rating === 'number'
+                ? data.rating
+                : (prev.ratingAverage ?? 0),
+            ratingCount: typeof data?.rating?.count === 'number'
+              ? data.rating.count
+              : (data.ratingCount || prev.ratingCount || 0),
             deliveryTime: `${data.deliveryTime} min`,
             minOrder: `₹${data.minOrderValue || 0}`,
             categories: categories,
@@ -226,9 +233,9 @@ export default function RestaurantDetail() {
           {/* Rating pill */}
           <View style={styles.ratingBadge}>
             <Star size={14} color="#FFB800" fill="#FFB800" />
-            <Text style={styles.ratingText}>{restaurant.rating}</Text>
+            <Text style={styles.ratingText}>{restaurant.ratingAverage}</Text>
             <Text style={styles.ratingSubText}>
-              ({restaurant.totalRatings})
+              ({restaurant.ratingCount})
             </Text>
           </View>
         </View>

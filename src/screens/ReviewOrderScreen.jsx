@@ -14,6 +14,8 @@ import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { CartContext } from '../context/CartContext';
 import { generateOrderId, placeOrder } from '../services/orderService';
 import { toNumber } from '../services/cartPricing';
+import { CART_ROUTES } from '../config/routes';
+import apiClient from '../config/apiClient';
 import {
   addAddress,
   deleteAddress,
@@ -55,6 +57,7 @@ export default function ReviewOrderScreen() {
 
   const [leaveAtDoor, setLeaveAtDoor] = useState(false);
   const [tipAmount, setTipAmount] = useState(0); // 0 | 5 | 10 | 20
+  const [tipLoading, setTipLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const placeOrderTimerRef = useRef(null);
 
@@ -76,18 +79,26 @@ export default function ReviewOrderScreen() {
 
   const summary = useMemo(() => {
     const subtotal = toNumber(totals?.subtotal, 0);
+    const deliveryFee = toNumber(totals?.delivery, 0);
+    const tax = toNumber(totals?.tax, 0);
+    const platformFee = toNumber(totals?.platformFee, 0);
+    const packaging = toNumber(totals?.packaging, 0);
+    const smallCartFee = toNumber(totals?.smallCartFee, 0);
+    const discount = toNumber(totals?.discount, 0);
+    const totalBeforeTip = subtotal + deliveryFee + tax + platformFee + packaging + smallCartFee - discount;
+    const grandTotal = Math.max(0, totalBeforeTip + tipAmount);
+    
     return {
       subtotal,
-      delivery: toNumber(totals?.delivery, 0),
-      tax: toNumber(totals?.tax, 0),
-      serviceFee: toNumber(totals?.platformFee, 0),
-      discount: toNumber(totals?.discount, 0),
+      delivery: deliveryFee,
+      tax,
+      serviceFee: platformFee,
+      packaging,
+      smallCartFee,
+      discount,
       tip: tipAmount,
-      grandTotal: Math.max(
-        0,
-        subtotal + toNumber(totals?.delivery, 0) + toNumber(totals?.tax, 0) +
-          toNumber(totals?.platformFee, 0) - toNumber(totals?.discount, 0) + tipAmount,
-      ),
+      totalBeforeTip,
+      grandTotal,
     };
   }, [totals, tipAmount]);
 
@@ -160,6 +171,28 @@ export default function ReviewOrderScreen() {
       };
     }, [applyAddressList]),
   );
+
+  const handleUpdateTip = useCallback(async (newTipAmount) => {
+    setTipLoading(true);
+    try {
+      const response = await apiClient.put(CART_ROUTES.updateMeta, {
+        tip: newTipAmount,
+      });
+      
+      if (response?.data?.bill) {
+        setTipAmount(response.data.bill.tip ?? newTipAmount);
+        console.log('✅ Tip updated successfully:', response.data.bill.tip);
+      } else {
+        setTipAmount(newTipAmount);
+      }
+    } catch (error) {
+      console.error('❌ Failed to update tip:', error?.message);
+      // Fallback: still update local state
+      setTipAmount(newTipAmount);
+    } finally {
+      setTipLoading(false);
+    }
+  }, []);
 
   const openCheckoutStep = step => {
     setActiveSheet(step);
@@ -265,7 +298,7 @@ export default function ReviewOrderScreen() {
         items: latestCartRef.current,
       });
     } finally {
-      // Sync cart state with backend (backend clears cart after order placement)
+      
       await fetchCart();
       setOrderId(newOrderId);
       setShowModal(true);
@@ -293,31 +326,6 @@ export default function ReviewOrderScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        <View style={styles.sectionCard}>
-          <Pressable
-            style={styles.sectionTitleRow}
-            onPress={() => {
-              setDeliveryNextStep(null);
-              setActiveSheet('delivery');
-            }}
-          >
-            <Text style={styles.sectionTitle}>Pick-up</Text>
-            <ChevronRight size={18} color="#999" />
-          </Pressable>
-
-          <Text style={styles.deliveryValue}>
-            {checkout?.type === 'pickup' ? 'Pick-up' : 'Delivery'}
-          </Text>
-          {!!(checkout?.date || checkout?.time) && (
-            <Text style={styles.deliverySub}>
-              {[checkout?.date, checkout?.time].filter(Boolean).join(' • ')}
-            </Text>
-          )}
-          {errors.checkout && (
-            <Text style={styles.errorText}>{errors.checkout}</Text>
-          )}
-        </View>
-
         <View style={styles.sectionCard}>
           <Pressable
             style={styles.sectionTitleRow}
@@ -363,10 +371,7 @@ export default function ReviewOrderScreen() {
         </View>
 
         <View style={styles.sectionCard}>
-          <Pressable style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>Tip your rider</Text>
-            <ChevronRight size={18} color="#999" />
-          </Pressable>
+          <Text style={styles.sectionTitle}>Tip your rider</Text>
 
           <Text style={styles.tipSub}>
             100% of the tips go to your rider, we dont deduct anything from it
@@ -379,17 +384,22 @@ export default function ReviewOrderScreen() {
               return (
                 <Pressable
                   key={String(v)}
-                  onPress={() => setTipAmount(v)}
+                  onPress={() => handleUpdateTip(v)}
+                  disabled={tipLoading}
                   style={[styles.tipChip, selected && styles.tipChipActive]}
                 >
-                  <Text
-                    style={[
-                      styles.tipChipText,
-                      selected && styles.tipChipTextActive,
-                    ]}
-                  >
-                    {label}
-                  </Text>
+                  {tipLoading && selected ? (
+                    <ActivityIndicator size="small" color={selected ? '#FFF' : '#111'} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.tipChipText,
+                        selected && styles.tipChipTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  )}
                 </Pressable>
               );
             })}
@@ -422,33 +432,63 @@ export default function ReviewOrderScreen() {
             <Text style={styles.billLabel}>Subtotal</Text>
             <Text style={styles.billValue}>₹{summary.subtotal.toFixed(2)}</Text>
           </View>
+
           <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Standard Delivery</Text>
-            <Text style={styles.billFree}>Free</Text>
+            <Text style={styles.billLabel}>Delivery Fee</Text>
+            <Text style={summary.delivery > 0 ? styles.billValue : styles.billFree}>
+              {summary.delivery > 0 ? `₹${summary.delivery.toFixed(2)}` : 'Free'}
+            </Text>
           </View>
+
+          <View style={styles.billRow}>
+            <Text style={styles.billLabel}>Tax</Text>
+            <Text style={styles.billValue}>₹{summary.tax.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.billRow}>
+            <Text style={styles.billLabel}>Packaging</Text>
+            <Text style={styles.billValue}>₹{summary.packaging.toFixed(2)}</Text>
+          </View>
+
           <View style={styles.billRow}>
             <Text style={styles.billLabel}>Service Fee</Text>
-            <Text style={styles.billValue}>
-              ₹{summary.serviceFee.toFixed(2)}
-            </Text>
+            <Text style={styles.billValue}>₹{summary.serviceFee.toFixed(2)}</Text>
           </View>
-          <View style={styles.billRow}>
-            <View>
-              <Text style={styles.billLabel}>Offer Applied</Text>
-              <Text style={styles.offerSub}>10% Off</Text>
+
+          {summary.smallCartFee > 0 && (
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Small Cart Fee</Text>
+              <Text style={styles.billValue}>₹{summary.smallCartFee.toFixed(2)}</Text>
             </View>
-            <Text style={styles.offerValue}>
-              -₹{summary.discount.toFixed(2)}
-            </Text>
-          </View>
+          )}
+
+          {summary.discount > 0 && (
+            <View style={styles.billRow}>
+              <View>
+                <Text style={styles.billLabel}>Offer Applied</Text>
+                <Text style={styles.offerSub}>Discount</Text>
+              </View>
+              <Text style={styles.offerValue}>-₹{summary.discount.toFixed(2)}</Text>
+            </View>
+          )}
 
           <View style={styles.dashedLine} />
 
           <View style={[styles.billRow, styles.billRowStrong]}>
-            <Text style={styles.billStrong}>Grand Total</Text>
-            <Text style={styles.billStrong}>
-              ₹{summary.grandTotal.toFixed(2)}
-            </Text>
+            <Text style={styles.billStrong}>Total Before Tip</Text>
+            <Text style={styles.billStrong}>₹{summary.totalBeforeTip.toFixed(2)}</Text>
+          </View>
+
+          {summary.tip > 0 && (
+            <View style={[styles.billRow, styles.tipRowHighlight]}>
+              <Text style={styles.tipLabel}>Tip for Rider</Text>
+              <Text style={styles.tipValue}>₹{summary.tip.toFixed(2)}</Text>
+            </View>
+          )}
+
+          <View style={[styles.billRow, styles.billRowFinal]}>
+            <Text style={styles.billFinal}>Grand Total</Text>
+            <Text style={styles.billFinal}>₹{summary.grandTotal.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -774,6 +814,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#111',
+  },
+
+  tipRowHighlight: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF3D3D',
+  },
+
+  tipLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF3D3D',
+  },
+
+  tipValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF3D3D',
+  },
+
+  billRowFinal: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#111',
+    borderRadius: 8,
+  },
+
+  billFinal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFF',
   },
 
   /* ---------- TERMS ---------- */

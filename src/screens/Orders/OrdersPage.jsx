@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, ChevronRight } from 'lucide-react-native';
@@ -16,145 +17,6 @@ import { CartContext } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
 
 const FALLBACK_ITEM_IMAGE = require('../../assets/images/Noodle.png');
-
-// Dummy data for when no orders exist
-const DUMMY_ORDERS = [
-  {
-    id: 'dummy-1',
-    restaurantName: "Shakey's Pizza",
-    status: 'ongoing',
-    createdAt: new Date().toISOString(),
-    checkout: { type: 'delivery' },
-    items: [
-      {
-        id: 'item-1',
-        name: 'Pepperoni Pizza',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Large, Extra Cheese' },
-        restaurantName: "Shakey's Pizza",
-      },
-      {
-        id: 'item-2',
-        name: 'Garlic Bread',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Regular' },
-        restaurantName: "Shakey's Pizza",
-      },
-    ],
-    totals: {
-      grandTotal: 850.00,
-      subtotal: 850.00,
-    },
-  },
-  {
-    id: 'dummy-2',
-    restaurantName: 'Burger King',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-    checkout: { type: 'delivery' },
-    items: [
-      {
-        id: 'item-3',
-        name: 'Whopper Burger',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Large Meal' },
-        restaurantName: 'Burger King',
-      },
-      {
-        id: 'item-4',
-        name: 'French Fries',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Medium' },
-        restaurantName: 'Burger King',
-      },
-      {
-        id: 'item-5',
-        name: 'Coke',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Large' },
-        restaurantName: 'Burger King',
-      },
-    ],
-    totals: {
-      grandTotal: 650.00,
-      subtotal: 650.00,
-    },
-  },
-  {
-    id: 'dummy-3',
-    restaurantName: 'Dominos Pizza',
-    status: 'preparing',
-    createdAt: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-    checkout: { type: 'pickup' },
-    items: [
-      {
-        id: 'item-6',
-        name: 'Margherita Pizza',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Medium, Regular Crust' },
-        restaurantName: 'Dominos Pizza',
-      },
-    ],
-    totals: {
-      grandTotal: 450.00,
-      subtotal: 450.00,
-    },
-  },
-  {
-    id: 'dummy-4',
-    restaurantName: 'KFC',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-    checkout: { type: 'delivery' },
-    items: [
-      {
-        id: 'item-7',
-        name: 'Fried Chicken Bucket',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: '8 Pieces, Original Recipe' },
-        restaurantName: 'KFC',
-      },
-      {
-        id: 'item-8',
-        name: 'Coleslaw',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Regular' },
-        restaurantName: 'KFC',
-      },
-    ],
-    totals: {
-      grandTotal: 1200.00,
-      subtotal: 1200.00,
-    },
-  },
-  {
-    id: 'dummy-5',
-    restaurantName: 'Subway',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-    checkout: { type: 'pickup' },
-    items: [
-      {
-        id: 'item-9',
-        name: 'Veggie Delite Sub',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: '6 inch, Wheat Bread' },
-        restaurantName: 'Subway',
-      },
-      {
-        id: 'item-10',
-        name: 'Cookies',
-        image: FALLBACK_ITEM_IMAGE,
-        selectedFlavor: { name: 'Chocolate Chip' },
-        restaurantName: 'Subway',
-      },
-    ],
-    totals: {
-      grandTotal: 350.00,
-      subtotal: 350.00,
-    },
-  },
-];
 
 function formatOrderDateTime(isoString) {
   const date = isoString ? new Date(isoString) : new Date();
@@ -211,6 +73,10 @@ function deriveStatusUi(order) {
     return { status: 'Completed', statusColor: '#27AE60', completed: true };
   }
 
+  if (raw.includes('cancel')) {
+    return { status: 'Cancelled', statusColor: '#9E9E9E' };
+  }
+
   if (
     raw.includes('ongoing') ||
     raw.includes('out_for_delivery') ||
@@ -223,17 +89,34 @@ function deriveStatusUi(order) {
     };
   }
 
-  // confirmed / preparing / default
+  // confirmed / preparing / placed / default
   return { status: 'Preparing', statusColor: '#F2994A' };
 }
 
 export default function OrdersScreen() {
   const [tab, setTab] = useState('Delivery');
   const [query, setQuery] = useState('');
-  const { orders } = useContext(CartContext);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const { orders, fetchOrders } = useContext(CartContext);
 
-  // Use dummy data if no real orders exist
-  const sourceOrders = (!orders || orders.length === 0) ? DUMMY_ORDERS : DUMMY_ORDERS;
+  // Fetch orders when component mounts
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        setLoading(true);
+        setFetchError(null);
+        await fetchOrders();
+      } catch (error) {
+        console.log('Orders screen error:', error?.message);
+        setFetchError(error?.message || 'Failed to load orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOrders();
+  }, [fetchOrders]);
 
   const data = useMemo(() => {
     const normalizedQuery = String(query || '')
@@ -241,17 +124,18 @@ export default function OrdersScreen() {
       .toLowerCase();
     const wantType = tab === 'Pickup' ? 'pickup' : 'delivery';
 
-    return (sourceOrders || [])
+    return (orders || [])
       .filter(o => {
-        const type = o?.checkout?.type || 'delivery';
+        // Determine order type: if deliveryAddress exists, it's delivery; otherwise pickup
+        const hasDeliveryAddress = !!o?.deliveryAddress;
+        const type = hasDeliveryAddress ? 'delivery' : 'pickup';
         return type === wantType;
       })
       .filter(o => {
         if (!normalizedQuery) return true;
-        const restaurantName =
-          o?.restaurantName || o?.items?.[0]?.restaurantName || '';
+        const restaurantName = o?.restaurant?.name?.en || o?.restaurant?.name || 'Restaurant';
         const itemsText = (o?.items || [])
-          .map(it => it?.name)
+          .map(it => it?.name || it?.product?.name?.en || it?.productName)
           .filter(Boolean)
           .join(' ');
         return `${restaurantName} ${itemsText}`
@@ -265,7 +149,7 @@ export default function OrdersScreen() {
           ...ui,
         };
       });
-  }, [sourceOrders, query, tab]);
+  }, [orders, query, tab]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -308,13 +192,29 @@ export default function OrdersScreen() {
         />
       </View>
 
-      <FlatList
-        data={data}
-        keyExtractor={item => String(item.id)}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item }) => <OrderCard item={item} />}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#000000" />
+          <Text style={styles.loadingText}>Loading your orders...</Text>
+        </View>
+      ) : data.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>
+            {query ? 'No orders found matching your search' : 'No orders yet'}
+          </Text>
+          <Text style={styles.emptySubText}>
+            {!query && 'Your orders will appear here'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={item => String(item._id || item.id)}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          renderItem={({ item }) => <OrderCard item={item} />}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -322,29 +222,36 @@ export default function OrdersScreen() {
 function OrderCard({ item }) {
   const navigation = useNavigation();
   const restaurantName =
-    item?.restaurantName || item?.items?.[0]?.restaurantName || 'Restaurant';
+    item?.restaurant?.name?.en || item?.restaurant?.name || item?.restaurantName || 'Restaurant';
 
   const items = Array.isArray(item?.items) ? item.items : [];
   const shownItems = items.slice(0, 2);
   const remainingCount = Math.max(0, items.length - shownItems.length);
 
   const cuisineLine = items
-    .map(it => it?.name)
+    .map(it => it?.name || it?.product?.name?.en || it?.productName)
     .filter(Boolean)
     .slice(0, 3)
     .join(', ');
 
   const { dateLine1, dateLine2 } = formatOrderDateTime(item?.createdAt);
 
+  // Handle multiple possible total field names from backend
   const total =
-    typeof item?.totals?.grandTotal === 'number'
+    typeof item?.totalAmount === 'number'
+      ? item.totalAmount
+      : typeof item?.totals?.grandTotal === 'number'
       ? item.totals.grandTotal
+      : typeof item?.grandTotal === 'number'
+      ? item.grandTotal
       : typeof item?.totals?.subtotal === 'number'
       ? item.totals.subtotal
+      : typeof item?.subtotal === 'number'
+      ? item.subtotal
       : 0;
 
   return (
-    <Pressable style={styles.card} onPress={() => navigation.navigate("OrderDetailsScreen")}>
+    <Pressable style={styles.card} onPress={() => navigation.navigate("OrderDetailsScreen", { orderId: item._id || item.id })}>
       {/* Restaurant */}
       <View style={styles.rowBetween}>
         <View>
@@ -359,12 +266,12 @@ function OrderCard({ item }) {
       {/* Items */}
       <View style={styles.itemsWrapper}>
         {shownItems.map((it, idx) => (
-          <View key={String(it?.id || idx)} style={styles.itemRow}>
-            <Image source={getImageSource(it?.image)} style={styles.itemImg} />
+          <View key={String(it?._id || it?.id || idx)} style={styles.itemRow}>
+            <Image source={getImageSource(it?.image || it?.product?.image)} style={styles.itemImg} />
             <View>
-              <Text style={styles.itemTitle}>{it?.name || 'Item'} </Text>
+              <Text style={styles.itemTitle}>{it?.name || it?.product?.name?.en || it?.productName || 'Item'} </Text>
               <Text style={styles.itemSub}>
-                {it?.selectedFlavor?.name || it?.selectedFlavor?.title || '—'}
+                {it?.selectedFlavor?.name || it?.variation?.name || it?.selectedFlavor?.title || it?.quantity ? `Qty: ${it.quantity}` : '—'}
               </Text>
             </View>
           </View>
@@ -583,5 +490,38 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#828282',
+  },
+
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+  },
+
+  emptySubText: {
+    fontSize: 13,
+    color: '#828282',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

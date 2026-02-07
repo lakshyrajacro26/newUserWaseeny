@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getAuthToken, getAuthUser, clearAuth, saveAuth } from '../services/storage';
+import apiClient from '../config/apiClient';
+import { AUTH_ROUTES } from '../config/routes';
 
 export const AuthContext = createContext({});
 
@@ -65,10 +67,19 @@ export function AuthProvider({ children }) {
 
   /**
    * Logout handler
-   * Clears AsyncStorage and resets in-memory state
+   * Calls logout API endpoint first, then clears AsyncStorage and resets in-memory state
    */
   const logout = useCallback(async () => {
     try {
+      // Call logout API endpoint
+      try {
+        await apiClient.post(AUTH_ROUTES.logout);
+      } catch (apiError) {
+        // Log API error but continue with local logout
+        console.warn('Logout API call failed - clearing auth locally:', apiError.message);
+      }
+
+      // Clear local auth state
       await clearAuth();
       setToken(null);
       setUser(null);

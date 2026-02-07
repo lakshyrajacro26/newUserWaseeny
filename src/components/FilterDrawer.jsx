@@ -27,7 +27,9 @@ const RATING_OPTIONS = [
 
 export default function FilterDrawer({ visible, onClose, onReset, onApply }) {
   const translateX = useRef(new Animated.Value(screenWidth)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
   const drawerWidth = useMemo(() => Math.min(screenWidth, 360), []);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const [selectedFood, setSelectedFood] = useState({
     Vegetarian: true,
@@ -41,21 +43,43 @@ export default function FilterDrawer({ visible, onClose, onReset, onApply }) {
   const [area, setArea] = useState('Select area');
   const [radius, setRadius] = useState('Select radius');
 
-  // useEffect(() => {
-  //   if (visible) {
-  //     Animated.timing(translateX, {
-  //       toValue: screenWidth - drawerWidth,
-  //       duration: 280,
-  //       useNativeDriver: true,
-  //     }).start();
-  //   } else {
-  //     Animated.timing(translateX, {
-  //       toValue: screenWidth,
-  //       duration: 220,
-  //       useNativeDriver: true,
-  //     }).start();
-  //   }
-  // }, [visible, drawerWidth, translateX]);
+  useEffect(() => {
+    if (visible) {
+      setIsAnimating(true);
+      // Reset to start position
+      translateX.setValue(screenWidth);
+      overlayOpacity.setValue(0);
+      
+      // Small delay to prevent flicker
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: screenWidth - drawerWidth,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => setIsAnimating(false));
+      });
+    } else {
+      Animated.parallel([
+        Animated.timing(translateX, {
+          toValue: screenWidth,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, drawerWidth, translateX, overlayOpacity]);
 
   const handleToggleFood = label => {
     setSelectedFood(prev => ({ ...prev, [label]: !prev[label] }));
@@ -94,16 +118,20 @@ export default function FilterDrawer({ visible, onClose, onReset, onApply }) {
     }
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <Pressable style={styles.backdrop} onPress={onClose} />
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[styles.backdrop, { opacity: overlayOpacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      </Animated.View>
       <Animated.View
         style={[
           styles.drawer,
-          // {
-          //   width: drawerWidth,
-          //   transform: [{ translateX }],
-          // },
+          {
+            width: drawerWidth,
+            transform: [{ translateX }],
+          },
         ]}
       >
         <View style={styles.headerRow}>

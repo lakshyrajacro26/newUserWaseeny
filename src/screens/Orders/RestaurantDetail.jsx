@@ -28,6 +28,7 @@ import { buildCartLineId, toNumber } from '../../services/cartPricing';
 import { getRestaurantMenu } from '../../services/restaurantService';
 
 const { width } = Dimensions.get('window');
+const restaurantMenuCache = new Map();
 
 export default function RestaurantDetail() {
   const route = useRoute();
@@ -48,8 +49,14 @@ export default function RestaurantDetail() {
       id: initialParamRestaurant?.id ?? initialParamRestaurant?._id ?? null,
       _id: initialParamRestaurant?._id ?? initialParamRestaurant?.id ?? null,
       name,
-      rating: initialParamRestaurant?.rating ?? 0,
-      totalRatings: initialParamRestaurant?.ratingCount ?? 0,
+      ratingAverage: typeof initialParamRestaurant?.rating?.average === 'number'
+        ? initialParamRestaurant.rating.average
+        : typeof initialParamRestaurant?.rating === 'number'
+          ? initialParamRestaurant.rating
+          : 0,
+      ratingCount: typeof initialParamRestaurant?.rating?.count === 'number'
+        ? initialParamRestaurant.rating.count
+        : initialParamRestaurant?.ratingCount ?? 0,
       deliveryTime: initialParamRestaurant?.deliveryTime ?? 30,
       minOrderValue: initialParamRestaurant?.minOrderValue ?? 0,
       cuisines,
@@ -78,6 +85,16 @@ export default function RestaurantDetail() {
       return;
     }
 
+    if (restaurantMenuCache.has(restaurantParamId)) {
+      const cached = restaurantMenuCache.get(restaurantParamId);
+      setRestaurant(prev => ({
+        ...prev,
+        ...cached.restaurant,
+      }));
+      setActiveCategory(cached.activeCategory || null);
+      return;
+    }
+
     setMenuLoading(true);
     setMenuError(null);
 
@@ -97,8 +114,14 @@ export default function RestaurantDetail() {
         name: c?.name?.en || 'Unknown',
       }));
 
-      const primaryCategory = categoriesWithIds[0]?.id || 'default';
-      const primaryCategoryName = categoriesWithIds[0]?.name || 'Popular';
+      // Add "All" category at the beginning
+      const allCategoriesWithAll = [
+        { id: 'all', name: 'All' },
+        ...categoriesWithIds,
+      ];
+
+      const primaryCategory = 'all';
+      const primaryCategoryName = 'All Items';
 
       const mappedItems = products.map(p => ({
         id: p._id,
@@ -108,7 +131,7 @@ export default function RestaurantDetail() {
         bannerimage: p.bannerImage || 'https://placehold.co/150',
         price: p.basePrice || 0,
         isVeg: p.isVeg,
-        categoryId: primaryCategory,
+        categoryId: p.categoryId || p.category?._id || p.category,
         available: p.available,
         variations: p.variations || [],
         addOns: p.addOns || [],
@@ -123,30 +146,48 @@ export default function RestaurantDetail() {
         menuByCategory[catId].push(item);
       });
 
-      const menu = categoriesWithIds.map(cat => ({
-        id: cat.id,
-        category: cat.name,
-        items: menuByCategory[cat.id] || [],
-      }));
+      // Create menu with "All" category containing all items
+      const allItemsList = Object.values(menuByCategory).flat();
+      const menu = [
+        {
+          id: 'all',
+          category: 'All Items',
+          items: allItemsList,
+        },
+        ...categoriesWithIds.map(cat => ({
+          id: cat.id,
+          category: cat.name,
+          items: menuByCategory[cat.id] || [],
+        })),
+      ];
 
-      const name = typeof initialParamRestaurant?.name === 'object'
-        ? initialParamRestaurant?.name?.en ?? prev.name
-        : initialParamRestaurant?.name ?? prev.name;
-      
-      setRestaurant(prev => ({
-        ...prev,
-        id: restaurantParamId,
-        name,
-        image: initialParamRestaurant?.image ?? prev.image,
-        bannerImage: initialParamRestaurant?.bannerImage ?? prev.bannerImage,
-        categories: categoriesWithIds,
-        popularItems: mappedItems,
-        menu:
-          menu.length > 0
-            ? menu
-            : [{ id: 'default', category: primaryCategoryName, items: mappedItems }],
-        offers: prev.offers || [],
-      }));
+      setRestaurant(prev => {
+        const name = typeof initialParamRestaurant?.name === 'object'
+          ? initialParamRestaurant?.name?.en ?? prev.name
+          : initialParamRestaurant?.name ?? prev.name;
+
+        const nextRestaurant = {
+          ...prev,
+          id: restaurantParamId,
+          name,
+          image: initialParamRestaurant?.image ?? prev.image,
+          bannerImage: initialParamRestaurant?.bannerImage ?? prev.bannerImage,
+          categories: allCategoriesWithAll,
+          popularItems: mappedItems,
+          menu:
+            menu.length > 0
+              ? menu
+              : [{ id: 'default', category: primaryCategoryName, items: mappedItems }],
+          offers: prev.offers || [],
+        };
+
+        restaurantMenuCache.set(restaurantParamId, {
+          restaurant: nextRestaurant,
+          activeCategory: primaryCategory,
+        });
+
+        return nextRestaurant;
+      });
       setActiveCategory(primaryCategory);
     } catch (err) {
       if (isMountedRef.current) {
@@ -176,7 +217,12 @@ export default function RestaurantDetail() {
   const [selectedItem, setSelectedItem] = useState(null);
 
   const filteredItems = useMemo(() => {
-    if (!activeCategory) return restaurant.popularItems || [];
+    if (!activeCategory || activeCategory === 'all') {
+      // Show all items combined
+      const allItems = restaurant.menu?.filter(m => m.id !== 'all')
+        .flatMap(m => m.items) || [];
+      return allItems.length > 0 ? allItems : restaurant.popularItems || [];
+    }
     const categoryMenu = restaurant.menu?.find(m => m.id === activeCategory);
     return categoryMenu?.items || [];
   }, [activeCategory, restaurant.menu, restaurant.popularItems]);
@@ -312,9 +358,9 @@ export default function RestaurantDetail() {
           {/* Rating pill */}
           <View style={styles.ratingBadge}>
             <Star size={14} color="#FFB800" fill="#FFB800" />
-            <Text style={styles.ratingText}>{restaurant.rating}</Text>
+            <Text style={styles.ratingText}>{restaurant.ratingAverage}</Text>
             <Text style={styles.ratingSubText}>
-              ({restaurant.totalRatings})
+              ({restaurant.ratingCount})
             </Text>
           </View>
         </View>
@@ -388,7 +434,9 @@ export default function RestaurantDetail() {
         <View style={styles.itemsCardWrap}>
           <View style={styles.itemsHeader}>
             <Text style={styles.itemsTitle}>
-              {restaurant.menu?.find(m => m.id === activeCategory)?.category || 'Menu'}
+              {activeCategory === 'all'
+                ? 'All Items'
+                : restaurant.menu?.find(m => m.id === activeCategory)?.category || 'Menu'}
             </Text>
             <Text style={styles.itemsSubTitle}>Most Order right now</Text>
           </View>
@@ -542,8 +590,12 @@ export default function RestaurantDetail() {
                     <Star
                       key={`${r.id}-star-${index}`}
                       size={14}
-                      color={index < (r.rating ?? 4) ? '#FF8A00' : '#F2D2B6'}
-                      fill={index < (r.rating ?? 4) ? '#FF8A00' : 'transparent'}
+                      color={index < (typeof r?.rating === 'number'
+                        ? r.rating
+                        : (r?.rating?.average ?? 4)) ? '#FF8A00' : '#F2D2B6'}
+                      fill={index < (typeof r?.rating === 'number'
+                        ? r.rating
+                        : (r?.rating?.average ?? 4)) ? '#FF8A00' : 'transparent'}
                     />
                   ))}
                 </View>

@@ -12,15 +12,7 @@ const SplashScreen = () => {
   const navigation = useNavigation();
   const { isInitialized, isAuthenticated } = useAuth();
 
-  /**
-   * PRODUCTION SPLASH PATTERN:
-   * 
-   * 1. Wait for AuthContext to initialize (read AsyncStorage)
-   * 2. Then navigate based on authentication state:
-   *    - Authenticated → LanguageSelect (must run, then HomeStack)
-   *    - Not authenticated → LanguageSelect (must run, then LoginScreen)
-   * 3. Never skip LanguageSelect or OnBoarding
-   */
+
   useEffect(() => {
     if (!isInitialized) return;
 

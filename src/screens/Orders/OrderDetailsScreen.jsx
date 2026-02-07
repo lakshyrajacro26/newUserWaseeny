@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,15 @@ import {
   ScrollView,
   TouchableOpacity,
   ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ArrowLeft, MoreVertical, Phone } from 'lucide-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import { CartContext } from '../../context/CartContext';
+import apiClient from '../../config/apiClient';
+import { ORDER_ROUTES } from '../../config/routes';
 import { toNumber } from '../../services/cartPricing';
 
 const FALLBACK_HEADER = require('../../assets/images/Noodle.png');
@@ -55,52 +57,98 @@ function imgSource(uri) {
 export default function OrderDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { getOrderById } = useContext(CartContext);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const orderId = route?.params?.orderId;
-  const order = useMemo(
-    () => (orderId ? getOrderById?.(orderId) : null),
-    [getOrderById, orderId],
-  );
+
+  useEffect(() => {
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchOrder = async () => {
+      try {
+        setLoading(true);
+        const url = ORDER_ROUTES.getOrderById.replace(':id', orderId);
+        const response = await apiClient.get(url);
+        setOrder(response?.data?.order || response?.data?.data || response?.data);
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        setOrder(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId]);
 
   const items = Array.isArray(order?.items) ? order.items : [];
   const first = items[0];
 
   const restaurantName =
+    (typeof order?.restaurant?.name === 'object' ? order?.restaurant?.name?.en : order?.restaurant?.name) ||
     order?.restaurantName ||
-    first?.restaurantName ||
     first?.restaurant?.name ||
     'Restaurant';
 
   const restaurantTags =
+    (Array.isArray(order?.restaurant?.cuisine) ? order?.restaurant?.cuisine?.join(', ') : '') ||
     order?.restaurantTags ||
-    first?.restaurant?.tags ||
-    'Pizza, Italian, Fast Food';
+    'Italian, Fine Dining';
+
+  const restaurantImage =
+    order?.restaurant?.image ||
+    order?.restaurant?.bannerImage ||
+    order?.restaurantImage ||
+    first?.restaurant?.image ||
+    first?.image;
 
   const totals = {
-    subtotal: toNumber(order?.totals?.subtotal, 0),
-    delivery: toNumber(order?.totals?.delivery, 0),
-    serviceFee: toNumber(
-      order?.totals?.serviceFee ?? order?.totals?.service,
-      0,
-    ),
-    discount: toNumber(order?.totals?.discount, 0),
-    grandTotal: toNumber(order?.totals?.grandTotal, 0),
+    subtotal: toNumber(order?.itemTotal, 0),
+    delivery: toNumber(order?.deliveryFee, 0),
+    tax: toNumber(order?.tax, 0),
+    packaging: 0,
+    serviceFee: toNumber(order?.platformFee, 0),
+    smallCartFee: 0,
+    discount: toNumber(order?.discount, 0),
+    tip: toNumber(order?.tip, 0),
+    totalBeforeTip: toNumber(order?.itemTotal, 0) + toNumber(order?.tax, 0) + toNumber(order?.deliveryFee, 0) + toNumber(order?.platformFee, 0) - toNumber(order?.discount, 0),
+    grandTotal: toNumber(order?.totalAmount, 0),
   };
 
   const statusLine =
     order?.status === 'delivered'
-      ? 'Your order has been delivered!'
+      ? 'Your order has been delivered! 🎉'
       : order?.status === 'cancelled'
       ? 'Your order was cancelled.'
+      : order?.status === 'placed'
+      ? 'Your order has been placed and awaits confirmation'
+      : order?.status === 'confirmed'
+      ? 'Restaurant has confirmed your order!'
+      : order?.status === 'out_for_delivery'
+      ? 'Your order is on its way! 🚴'
       : 'Your food is being prepared fresh!';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#E53935" />
+          <Text style={styles.loadingText}>Fetching your order...</Text>
+        </View>
+      ) : !order ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Order not found</Text>
+        </View>
+      ) : (
+        <>
       {/* HEADER IMAGE - EXACT like image */}
       <View style={styles.imageWrapper}>
         <ImageBackground
-          source={imgSource(first?.image)}
+          source={imgSource(restaurantImage)}
           style={styles.headerImage}
         >
           <LinearGradient
@@ -134,9 +182,23 @@ export default function OrderDetailsScreen() {
               <View style={styles.headerTextBlock}>
                 <Text style={styles.restaurantImageName}>{restaurantName}</Text>
                 <Text style={styles.restaurantImageTags}>{restaurantTags}</Text>
-                <View style={styles.menuButtonContainer}>
+                <TouchableOpacity 
+                  style={styles.menuButtonContainer}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (order?.restaurant?._id) {
+                      navigation.navigate('MainTabs', {
+                        screen: 'Home',
+                        params: { 
+                          screen: 'RestaurantDetail',
+                          params: { restaurant: order.restaurant }
+                        },
+                      });
+                    }
+                  }}
+                >
                   <Text style={styles.menuButtonText}>Menu &gt;</Text>
-                </View>
+                </TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.callButton} activeOpacity={0.85}>
                 <Phone size={14} color="#FFFFFF" />
@@ -162,16 +224,15 @@ export default function OrderDetailsScreen() {
 
           {items.map(item => {
             const lineTotal =
-              toNumber(item?.totalPrice, null) ??
-              toNumber(item?.unitTotal, null) ??
               toNumber(item?.price, 0) *
                 toNumber(item?.quantity ?? item?.qty, 1);
+            const itemImage = item?.product?.image || item?.image;
             const subLine = formatOptionsLine(item) || 'Regular';
 
             return (
-              <View style={styles.itemRow} key={item?.id ?? item?.name}>
+              <View style={styles.itemRow} key={item?._id ?? item?.name}>
                 <Image
-                  source={imgSource(item?.image)}
+                  source={imgSource(itemImage)}
                   style={styles.itemThumb}
                 />
                 <View style={styles.itemContent}>
@@ -199,7 +260,7 @@ export default function OrderDetailsScreen() {
             </View>
 
             <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Standard Delivery</Text>
+              <Text style={styles.billLabel}>Delivery Fee</Text>
               {totals.delivery === 0 ? (
                 <Text style={styles.deliveryFree}>Free</Text>
               ) : (
@@ -209,6 +270,24 @@ export default function OrderDetailsScreen() {
               )}
             </View>
 
+            {totals.tax > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Tax</Text>
+                <Text style={styles.billValue}>
+                  ₹ {totals.tax.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
+            {totals.packaging > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Packaging</Text>
+                <Text style={styles.billValue}>
+                  ₹ {totals.packaging.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Service Fee</Text>
               <Text style={styles.billValue}>
@@ -216,33 +295,50 @@ export default function OrderDetailsScreen() {
               </Text>
             </View>
 
+            {totals.smallCartFee > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Small Cart Fee</Text>
+                <Text style={styles.billValue}>
+                  ₹ {totals.smallCartFee.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
+            {totals.discount > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Offer Applied</Text>
+                <Text style={styles.couponValue}>
+                  -₹ {totals.discount.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.billDivider} />
+
+            {totals.tip > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Tip for Rider</Text>
+                <Text style={styles.tipValue}>
+                  ₹ {totals.tip.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Grand Total</Text>
               <Text style={styles.grandTotal}>
                 ₹ {totals.grandTotal.toFixed(2)}
               </Text>
             </View>
-
-            <View style={styles.couponRow}>
-              <Text style={styles.couponLabel}>Coupon Applied</Text>
-              <Text style={styles.couponValue}>
-                -₹ {totals.discount.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.paidRow}>
-              <Text style={styles.paidLabel}>Paid</Text>
-              <Text style={styles.paidValue}>
-                ₹ {totals.grandTotal.toFixed(2)}
-              </Text>
-            </View>
           </View>
 
-          <View style={styles.savingsBox}>
-            <Text style={styles.savingsText}>
-              Hurry! You saved ₹ {totals.discount.toFixed(2)} on this order.
-            </Text>
-          </View>
+          {totals.discount > 0 && (
+            <View style={styles.savingsBox}>
+              <Text style={styles.savingsText}>
+                Hurry! You saved ₹ {totals.discount.toFixed(2)} on this order.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* ADDRESS + ORDER INFO CARD */}
@@ -255,7 +351,7 @@ export default function OrderDetailsScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.address}>
-              Jetty Point – Gate No. 2, Marina Bay, New Delhi
+              {order?.deliveryAddress?.addressLine || order?.address?.addressLine || order?.address || 'Address not available'}
             </Text>
           </View>
 
@@ -263,24 +359,28 @@ export default function OrderDetailsScreen() {
 
           <View style={styles.infoBlockCompact}>
             <Text style={styles.infoLabel}>Order ID</Text>
-            <Text style={styles.infoValue}>#7892020189</Text>
+            <Text style={styles.infoValue}>#{order?.id || order?._id || 'N/A'}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.infoBlockCompact}>
             <Text style={styles.infoLabel}>Payment Method</Text>
-            <Text style={styles.infoValue}>Via Credit Card</Text>
+            <Text style={styles.infoValue}>
+              {order?.paymentMethod === 'cod' ? 'Cash on Delivery' : order?.paymentMethod === 'card' ? 'Credit/Debit Card' : order?.paymentMethod === 'wallet' ? 'Wallet' : order?.paymentMethod || 'Not specified'}
+            </Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.infoBlockCompact}>
             <Text style={styles.infoLabel}>Payment Time & Date</Text>
-            <Text style={styles.infoValue}>On 24, May at 11:59 PM</Text>
+            <Text style={styles.infoValue}>{formatDateTime(order?.createdAt || order?.paidAt)}</Text>
           </View>
         </View>
       </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -289,6 +389,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    gap: 16,
+  },
+
+  loadingText: {
+    fontSize: 16,
+    color: '#666666',
+    fontWeight: '500',
+    marginTop: 12,
   },
 
   imageWrapper: {
@@ -647,5 +762,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#000000',
     fontWeight: '500',
+  },
+
+  billDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 8,
+  },
+
+  tipValue: {
+    fontSize: 12,
+    color: '#EB5757',
+    fontWeight: '600',
   },
 });

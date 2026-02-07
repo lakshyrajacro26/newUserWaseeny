@@ -16,6 +16,7 @@ import {
   removeItemFromCart,
   updateItemQuantity,
 } from '../services/cartService';
+import { getOrders as fetchOrdersFromAPI } from '../services/orderService';
 
 export const CartContext = createContext({});
 
@@ -90,6 +91,7 @@ export const CartProvider = ({ children }) => {
   const [conflictData, setConflictData] = useState(null);
   const [pendingConflictPayload, setPendingConflictPayload] = useState(null);
   const [conflictModalLoading, setConflictModalLoading] = useState(false);
+  const [freshCartResolvedAt, setFreshCartResolvedAt] = useState(0);
 
   // Debounce timers for quantity updates (prevent multiple API calls)
   const quantityUpdateTimers = useRef({});
@@ -130,7 +132,7 @@ export const CartProvider = ({ children }) => {
           menuItemId: item.product,
           productId: item.product,
           name: item.name,
-          image: item.restaurant?.image || '',
+          image: item.image || item.product?.image || '',
           basePrice: item.price,
           price: item.price,
           quantity: item.quantity,
@@ -304,6 +306,37 @@ export const CartProvider = ({ children }) => {
     orderId => orders.find(o => o.id === orderId),
     [orders],
   );
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('CartContext: Fetching orders...');
+      const data = await fetchOrdersFromAPI();
+      console.log('CartContext: Orders data received:', data);
+      
+      if (Array.isArray(data?.orders) || Array.isArray(data)) {
+        const ordersList = Array.isArray(data?.orders) ? data.orders : data;
+        // Transform orders if needed and set them
+        setOrders(ordersList);
+      } else if (data?.data && Array.isArray(data.data)) {
+        setOrders(data.data);
+      } else {
+        console.log('CartContext: No orders array found in response:', data);
+        setOrders([]);
+      }
+    } catch (error) {
+      console.error('CartContext: Error fetching orders:', error?.message, error?.response?.status);
+      // Only log but don't throw - gracefully handle 404 or other errors
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        console.log('CartContext: Authentication error while fetching orders');
+      } else if (error?.response?.status === 404) {
+        console.log('CartContext: Orders endpoint not found (404) - Backend may not have this endpoint yet');
+      }
+      // Don't set orders to empty on error - keep existing orders
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const setItemQuantity = useCallback(async (id, quantity) => {
     const item = cart.find(i => i.id === id);
@@ -482,6 +515,7 @@ export const CartProvider = ({ children }) => {
   const handleFreshCart = useCallback(async () => {
     try {
       setConflictModalLoading(true);
+      setFreshCartResolvedAt(Date.now());
       console.log('CartContext: User chose fresh cart, clearing and adding new item');
       
       if (!pendingConflictPayload) {
@@ -586,6 +620,8 @@ export const CartProvider = ({ children }) => {
           addToCart,
           addOrder,
           getOrderById,
+          fetchOrders,
+          freshCartResolvedAt,
           checkout,
           setCheckout,
           address,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,7 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Animated,
+  Dimensions,
+  BackHandler,
 } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ReasonSheetModal({
   visible,
@@ -15,15 +20,67 @@ export default function ReasonSheetModal({
   onSelect,
   onClose,
 }) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = React.useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setShouldRender(false);
+      return undefined;
+    }
+
+    // Reset to initial position
+    overlayOpacity.setValue(0);
+    translateY.setValue(SCREEN_HEIGHT);
+    
+    // Wait for next frame before rendering and animating
+    requestAnimationFrame(() => {
+      setShouldRender(true);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            stiffness: 220,
+            damping: 28,
+            mass: 0.9,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => true,
+    );
+    return () => backHandler.remove();
+  }, [visible, overlayOpacity, translateY]);
+
+  if (!shouldRender) return null;
+
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.sheet}>
+      <View style={styles.modalRoot}>
+        <Animated.View style={[styles.modalOverlay, { opacity: overlayOpacity }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+        </Animated.View>
+
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <View style={styles.sheetHandleWrap}>
             <TouchableOpacity style={styles.sheetClose} onPress={onClose}>
               <Text style={styles.sheetCloseText}>✕</Text>
@@ -57,17 +114,20 @@ export default function ReasonSheetModal({
               );
             })}
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'flex-end',
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheet: {
     backgroundColor: '#FFFFFF',
