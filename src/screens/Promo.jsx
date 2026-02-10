@@ -7,10 +7,10 @@ import {
   TextInput,
   ScrollView,
   Image,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 
 export default function Promo() {
@@ -21,11 +21,21 @@ export default function Promo() {
     const finalCode = code || promo;
 
     if (!finalCode) {
-      Alert.alert('Error', 'Please enter promo code');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Please enter promo code',
+        position: 'top',
+      });
       return;
     }
 
-    Alert.alert('Success', `${finalCode} applied successfully`);
+    Toast.show({
+      type: 'topSuccess',
+      text1: 'Success',
+      text2: `${finalCode} applied successfully`,
+      position: 'top',
+    });
     // yahan future me cart / payment screen ko promo bhej sakte he
     // navigation.goBack();
   };

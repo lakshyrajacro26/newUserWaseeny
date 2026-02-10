@@ -11,14 +11,25 @@ import { ArrowLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { foodOptions } from '../../Data/foodOptions';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
 
-
-const CARD = 104;
-const GAP = 12;
+const CARD = wp(28.89);
+const GAP = wp(3.33);
 
 export default function FoodPreferences() {
   const [selected, setSelected] = useState([]);
   const navigation = useNavigation();
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('LoginScreen');
+  };
 
   const toggleSelect = id => {
     setSelected(prev =>
@@ -53,7 +64,7 @@ export default function FoodPreferences() {
       {/* HEADER */}
       <TouchableOpacity
         style={styles.header}
-        onPress={() => navigation.navigate('LoginScreen')}
+        onPress={handleBack}
       >
         <ArrowLeft size={22} color="#000" />
       </TouchableOpacity>
@@ -93,33 +104,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
+    paddingHorizontal: wp(4.44),
   },
 
   header: {
-    marginTop: 10,
+    marginTop: hp(1.25),
   },
 
   title: {
-    marginTop: 18,
-    fontSize: 30,
+    marginTop: hp(2.25),
+    fontSize: FONT.xl + scale(4),
     fontWeight: '700',
     color: '#000',
     textAlign: 'center',
   },
 
   subtitle: {
-    marginTop: 6,
-    fontSize: 14,
+    marginTop: hp(0.75),
+    fontSize: FONT.xs,
     color: '#6F6F6F',
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 12,
+    lineHeight: hp(2.25),
+    paddingHorizontal: wp(3.33),
   },
 
   grid: {
-    marginTop: 22,
-    paddingBottom: 110,
+    marginTop: hp(2.75),
+    paddingBottom: hp(22),
     rowGap: GAP,
     alignItems: 'center',
   },
@@ -132,18 +143,18 @@ const styles = StyleSheet.create({
   },
 
   cardImage: {
-    borderRadius: 16,
+    borderRadius: scale(16),
   },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.38)',
-    borderRadius: 16,
+    borderRadius: scale(16),
   },
 
   cardText: {
     color: '#FFF',
-    fontSize: 13,
+    fontSize: scale(11),
     fontWeight: '600',
     textAlign: 'center',
     zIndex: 2,
@@ -151,26 +162,26 @@ const styles = StyleSheet.create({
 
   activeBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 2.5,
+    borderWidth: scale(2.5),
     borderColor: '#00D6FF',
-    borderRadius: 16,
+    borderRadius: scale(16),
   },
 
   button: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 60,
-    height: 54,
+    left: wp(4.44),
+    right: wp(4.44),
+    bottom: hp(7.5),
+    height: hp(6.75),
     backgroundColor: '#FF2D2D',
-    borderRadius: 27,
+    borderRadius: scale(27),
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   buttonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: FONT.sm,
     fontWeight: '700',
   },
 });

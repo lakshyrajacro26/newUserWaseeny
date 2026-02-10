@@ -280,7 +280,7 @@ const ProfileScreen = () => {
 
           {isLoadingProfile ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF0000" />
+              <ActivityIndicator size="large" color="#ed1c24" />
               <Text style={styles.loadingText}>Loading profile...</Text>
             </View>
           ) : (
@@ -425,7 +425,7 @@ const ProfileScreen = () => {
       />
     </SafeAreaView>
   );
-};
+}
 
 export default ProfileScreen;
 
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FF0000',
+    backgroundColor: '#ed1c24',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   changePhotoText: {
     fontSize: 14,
-    color: '#FF0000',
+    color: '#ed1c24',
     fontWeight: '600',
   },
   form: {
@@ -531,8 +531,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   languageButtonActive: {
-    backgroundColor: '#FF0000',
-    borderColor: '#FF0000',
+    backgroundColor: '#ed1c24',
+    borderColor: '#ed1c24',
   },
   languageButtonText: {
     fontSize: 14,
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   },
   updateButton: {
     height: 50,
-    backgroundColor: '#FF0000',
+    backgroundColor: '#ed1c24',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',

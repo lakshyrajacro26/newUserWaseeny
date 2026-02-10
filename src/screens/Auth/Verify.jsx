@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
-  Dimensions,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,8 +15,9 @@ import Toast from 'react-native-toast-message';
 import { registerVerify, resendOtp, forgotPasswordVerifyOTP, forgotPasswordResendOTP } from '../../services/authService';
 import { clearPendingSignup, getPendingSignup } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
-
-const { width, height } = Dimensions.get('window');
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
 
 export default function OtpVerificationScreen() {
   const navigation = useNavigation();
@@ -215,7 +215,7 @@ export default function OtpVerificationScreen() {
   }, [isResending, timer, mobile, email]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <Image
         source={require('../../assets/images/BgImgRotate.png')}
         style={styles.bgImage}
@@ -304,7 +304,7 @@ export default function OtpVerificationScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ed1c24',
   },
   bgImage: {
     position: 'absolute',
@@ -336,35 +336,35 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 50,
-    left: 20,
+    top: hp(6.25),
+    left: wp(5.56),
     zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp(11.11),
+    height: hp(5),
+    borderRadius: wp(5.56),
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: hp(0.25) },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: scale(3),
     elevation: 3,
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: wp(6.67),
   },
   content: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: wp(111.11),
     // backgroundColor: 'rgba(255, 255, 255, 0.95)',
     // borderRadius: 24,
-    paddingHorizontal: 32,
-    paddingVertical: 20,
-    marginBottom: 50,
+    paddingHorizontal: wp(8.89),
+    paddingVertical: hp(2.5),
+    marginBottom: hp(6.25),
     // alignItems: 'center',
     // justifyContent:'flex-start',
     // shadowColor: '#000',
@@ -374,44 +374,44 @@ const styles = StyleSheet.create({
     // elevation: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: FONT.xxl + scale(4),
     fontWeight: '700',
     color: '#000000',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: hp(1.5),
     letterSpacing: -0.5,
   },
   description: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#666666',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 32,
-    paddingHorizontal: 8,
+    lineHeight: hp(2.5),
+    marginBottom: hp(4),
+    paddingHorizontal: wp(2.22),
   },
   timerContainer: {
-    marginBottom: 12,
+    marginBottom: hp(1.5),
   },
   timer: {
-    fontSize: 20,
+    fontSize: FONT.lg + scale(2),
     fontWeight: '700',
-    color: '#E11D2E',
+    color: '#ed1c24',
     textAlign: 'center',
     letterSpacing: 1,
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 40,
+    gap: wp(3.33),
+    marginBottom: hp(5),
     width: '100%',
   },
   otpBox: {
-    width: 40,
-    height: 40,
+    width: wp(11.11),
+    height: hp(5),
     backgroundColor: '#F8F8F8',
-    borderRadius: 10,
-    fontSize: 13,
+    borderRadius: scale(10),
+    fontSize: FONT.xs,
     fontWeight: '600',
     color: '#000000',
     textAlign: 'center',
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   filledOtpBox: {
-    borderColor: '#E11D2E',
+    borderColor: '#ed1c24',
     backgroundColor: '#FFF',
     borderWidth: 2,
   },
@@ -430,24 +430,24 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    backgroundColor: '#E11D2E',
-    borderRadius: 16,
-    paddingVertical: 15,
+    backgroundColor: '#ed1c24',
+    borderRadius: scale(16),
+    paddingVertical: hp(1.875),
     alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#E11D2E',
-    shadowOffset: { width: 0, height: 4 },
+    marginBottom: hp(3),
+    shadowColor: '#ed1c24',
+    shadowOffset: { width: 0, height: hp(0.5) },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: scale(8),
     elevation: 5,
   },
   buttonDisabled: {
-    backgroundColor: '#FFB3B3',
+    backgroundColor: '#f9a5a8',
     shadowOpacity: 0,
     elevation: 0,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: FONT.md,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -456,13 +456,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: FONT.sm,
     color: '#666666',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: hp(1.5),
   },
   resendText: {
-    color: '#E11D2E',
+    color: '#ed1c24',
     fontWeight: '700',
   },
   resendDisabled: {
@@ -470,11 +470,11 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   changeEmailButton: {
-    paddingVertical: 8,
+    paddingVertical: hp(1),
   },
   changeEmailText: {
-    fontSize: 14,
-    color: '#E11D2E',
+    fontSize: FONT.sm,
+    color: '#ed1c24',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

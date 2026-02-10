@@ -6,7 +6,6 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,13 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialTextInput from '../../components/input/MaterialTextInput';
 import { ArrowLeft } from 'lucide-react-native';
 import { resetPassword } from '../../services/authService';
-
-const { width, height } = Dimensions.get('window');
-
-const FIGMA_WIDTH = 313;
-const SCALE = width / FIGMA_WIDTH;
-
-const s = v => v * SCALE;
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
 
 const ChangePasswordScreen = () => {
   const navigation = useNavigation();
@@ -133,7 +128,7 @@ const ChangePasswordScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -190,56 +185,56 @@ export default ChangePasswordScreen;
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingLeft: s(20),
-    paddingRight: s(20),
+    backgroundColor: '#ed1c24',
+    paddingLeft: wp(5.56),
+    paddingRight: wp(5.56),
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: s(22),
+    marginTop: hp(2.75),
   },
 
   backIcon: {
-    width: s(18),
-    height: s(18),
+    width: wp(5),
+    height: hp(2.25),
     resizeMode: 'contain',
   },
 
   title: {
-    fontSize: s(16),
+    fontSize: FONT.md,
     fontWeight: '600',
     color: '#000000',
-    marginLeft: s(12),
+    marginLeft: wp(3.33),
   },
 
   subtitle: {
-    fontSize: s(11),
+    fontSize: scale(11),
     color: '#7C7C7C',
-    marginTop: s(12),
-    marginBottom: s(24),
+    marginTop: hp(1.5),
+    marginBottom: hp(3),
   },
 
   inputBlock: {
     width: '100%',
-    marginTop:30
+    marginTop: hp(3.75),
   },
 
   label: {
-    fontSize: s(10),
+    fontSize: scale(10),
     color: '#1E1E1E',
-    marginBottom: s(6),
+    marginBottom: hp(0.75),
   },
 
   inputContainer: {
     width: '100%',
-    height: s(38),
-    borderRadius: s(10),
+    height: hp(4.75),
+    borderRadius: scale(10),
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    paddingLeft: s(12),
-    paddingRight: s(12),
+    paddingLeft: wp(3.33),
+    paddingRight: wp(3.33),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -251,26 +246,26 @@ const styles = StyleSheet.create({
 
   input: {
     flex: 1,
-    fontSize: s(11),
+    fontSize: scale(11),
     color: '#000000',
     padding: 0,
   },
 
   eye: {
-    width: s(16),
-    height: s(16),
+    width: wp(4.44),
+    height: hp(2),
     resizeMode: 'contain',
-    marginLeft: s(10),
+    marginLeft: wp(2.78),
   },
 
   button: {
     width: '100%',
-    height: s(44),
-    backgroundColor: '#F31D1D',
-    borderRadius: s(12),
+    height: hp(5.5),
+    backgroundColor: '#ed1c24',
+    borderRadius: scale(12),
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: s(26),
+    marginTop: hp(3.25),
   },
 
   buttonDisabled: {
@@ -278,13 +273,13 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    fontSize: s(13),
+    fontSize: FONT.xs,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   errorText: {
-    fontSize: s(10),
-    color: '#E11D2E',
-    marginTop: s(6),
+    fontSize: scale(10),
+    color: '#ed1c24',
+    marginTop: hp(0.75),
   },
 });

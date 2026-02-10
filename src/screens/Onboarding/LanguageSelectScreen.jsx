@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  TouchableOpacity,
   Dimensions,
   StatusBar,
   ScrollView,
@@ -96,14 +97,14 @@ export default function LanguageSelectScreen() {
           </View>
         </ScrollView>
         <View style={styles.btnWrapper}>
-          <Pressable
+          <TouchableOpacity
             style={styles.btn}
             onPress={() =>
               navigation.replace('OnBoarding', { language: selected })
             }
           >
             <Text style={styles.btnText}>Select</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   btn: {
-    backgroundColor: '#E11D2E',
+    backgroundColor: '#ed1c24',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',

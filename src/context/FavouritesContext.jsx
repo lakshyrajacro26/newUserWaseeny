@@ -1,38 +1,181 @@
-import React, { createContext, useCallback, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import Toast from 'react-native-toast-message';
+import {
+  getFavoriteRestaurants,
+  getFavoriteProducts,
+  toggleFavoriteRestaurant,
+  toggleFavoriteProduct,
+} from '../services/favoriteService';
+import { debounce } from '../utils/debounce';
 
 export const FavouritesContext = createContext({});
 
 function normalizeFavourite(raw) {
   if (!raw) return null;
 
-  const id = raw.favouriteId || raw.id;
+  const id = raw._id || raw.favouriteId || raw.id;
   if (!id) return null;
+
+  // Determine if this is a restaurant or product
+  const isProduct = raw.type === 'product' || raw.menuItemId || raw.itemId || raw.productId || raw.product || !raw.cuisines;
+
+  // Extract product/menu item ID from possible shapes
+  const rawMenuItem = raw.menuItemId || raw.itemId || raw.productId || raw.product || raw.item || null;
+  let menuItemId = rawMenuItem && typeof rawMenuItem === 'object'
+    ? (rawMenuItem._id || rawMenuItem.id || null)
+    : rawMenuItem;
+  
+  // For products, if we couldn't extract a menuItemId, use the favorite's own ID
+  // (backend sometimes stores the product ID as the favorite record ID)
+  if (isProduct && !menuItemId) {
+    menuItemId = id;
+  }
+  
+  // Extract restaurant ID (handle nested objects and different formats)
+  let restaurantId = null;
+  if (raw.restaurantId) {
+    if (typeof raw.restaurantId === 'object' && raw.restaurantId._id) {
+      restaurantId = raw.restaurantId._id;
+    } else if (typeof raw.restaurantId === 'string') {
+      restaurantId = raw.restaurantId;
+    }
+  } else if (raw.restaurant?._id) {
+    restaurantId = raw.restaurant._id;
+  }
+
+  // Extract restaurant name
+  let restaurantName = 'Restaurant';
+  if (raw.restaurantId?.name) {
+    restaurantName = typeof raw.restaurantId.name === 'object' 
+      ? raw.restaurantId.name.en || raw.restaurantId.name.de || raw.restaurantId.name.ar || 'Restaurant'
+      : raw.restaurantId.name;
+  } else if (raw.restaurantName) {
+    restaurantName = typeof raw.restaurantName === 'object'
+      ? raw.restaurantName.en || raw.restaurantName.de || raw.restaurantName.ar || 'Restaurant'
+      : raw.restaurantName;
+  } else if (raw.restaurant?.name) {
+    restaurantName = typeof raw.restaurant.name === 'object'
+      ? raw.restaurant.name.en || raw.restaurant.name.de || raw.restaurant.name.ar || 'Restaurant'
+      : raw.restaurant.name;
+  }
 
   return {
     id: String(id),
-    menuItemId: raw.menuItemId ?? raw.itemId ?? null,
-    restaurantId: raw.restaurantId ?? null,
-    restaurantName: raw.restaurantName ?? raw.restaurant?.name ?? 'Restaurant',
-    name: raw.name ?? 'Item',
-    image: raw.image ?? null,
-    description: raw.description ?? '',
+    // For products, menuItemId should be the product's own ID
+    menuItemId: isProduct ? (menuItemId ?? null) : null,
+    restaurantId: restaurantId,
+    restaurantName: restaurantName,
+    name: raw.name || 'Item',
+    image: raw.image || raw.bannerImage || null,
+    description: raw.description || '',
     price: raw.price ?? raw.basePrice ?? 0,
     basePrice: raw.basePrice ?? raw.price ?? 0,
     createdAt: raw.createdAt ?? new Date().toISOString(),
+    type: raw.type || (isProduct ? 'product' : 'restaurant'),
   };
 }
 
 export const FavouritesProvider = ({ children }) => {
   const [favourites, setFavourites] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const pendingToggles = useRef(new Map());
+
+  // Fetch all favorites from API
+  const fetchFavourites = useCallback(async () => {
+    if (isLoading) return;
+    
+    try {
+      setIsLoading(true);
+      const [restaurants, products] = await Promise.all([
+        getFavoriteRestaurants().catch(() => []),
+        getFavoriteProducts().catch(() => []),
+      ]);
+
+      const allFavorites = [
+        ...restaurants.map(r => normalizeFavourite({ ...r, type: 'restaurant' })),
+        ...products.map(p => normalizeFavourite({ ...p, type: 'product' })),
+      ].filter(Boolean);
+
+      setFavourites(allFavorites);
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+      setIsInitialized(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading]);
+
+  // Initialize favorites on mount
+  useEffect(() => {
+    fetchFavourites();
+  }, []);
+
 
   const isFavourite = useCallback(
-    id => {
+    (id, type) => {
       const key = String(id ?? '');
       if (!key) return false;
-      return favourites.some(f => f.id === key);
+      return favourites.some(f => {
+        if (type === 'restaurant') {
+          const favIsRestaurant = f?.type === 'restaurant' || !f?.menuItemId;
+          return favIsRestaurant && String(f.restaurantId || f.id) === key;
+        }
+        if (type === 'product') {
+          const favIsRestaurant = f?.type === 'restaurant' || !f?.menuItemId;
+          return !favIsRestaurant && String(f.menuItemId || f.id) === key;
+        }
+        return f.id === key || f.restaurantId === key || f.menuItemId === key;
+      });
     },
     [favourites],
   );
+
+  // Debounced API call for toggling favorites
+  const debouncedToggleAPI = useRef(
+    debounce(async (id, type, isRestaurant, afterToggle) => {
+      try {
+        const apiCall = isRestaurant ? toggleFavoriteRestaurant : toggleFavoriteProduct;
+        const result = await apiCall(id);
+        
+        // Remove from pending after successful API call
+        pendingToggles.current.delete(`${type}:${id}`);
+
+        // Always re-sync with backend after a toggle
+        afterToggle?.();
+        
+        return result;
+      } catch (error) {
+        console.error('Error toggling favorite:', error);
+        
+        // Revert optimistic update on error
+        const pendingState = pendingToggles.current.get(`${type}:${id}`);
+        if (pendingState) {
+          setFavourites(prev => {
+            if (pendingState.wasAdded) {
+              // Was added optimistically, so remove it
+              return prev.filter(f => f.id !== id && f.restaurantId !== id && f.menuItemId !== id);
+            } else {
+              // Was removed optimistically, so add it back
+              return [pendingState.item, ...prev];
+            }
+          });
+        }
+        
+        pendingToggles.current.delete(`${type}:${id}`);
+        
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to update favorite',
+          text2: error?.response?.data?.message || 'Please try again',
+          position: 'bottom',
+        });
+        
+        throw error;
+      }
+    }, 600)
+  ).current;
 
   const addFavourite = useCallback(raw => {
     const fav = normalizeFavourite(raw);
@@ -50,23 +193,53 @@ export const FavouritesProvider = ({ children }) => {
     setFavourites(prev => prev.filter(f => f.id !== key));
   }, []);
 
-  const toggleFavourite = useCallback(raw => {
-    const fav = normalizeFavourite(raw);
-    if (!fav) return { added: false };
+  const toggleFavourite = useCallback(
+    (raw) => {
+      const fav = normalizeFavourite(raw);
+      if (!fav) return { added: false };
 
-    let added = false;
-    setFavourites(prev => {
-      const exists = prev.some(x => x.id === fav.id);
-      if (exists) {
-        added = false;
-        return prev.filter(x => x.id !== fav.id);
-      }
-      added = true;
-      return [fav, ...prev];
-    });
+      const isRestaurant = fav.type === 'restaurant' || !fav.menuItemId;
+      const targetId = isRestaurant
+        ? (fav.restaurantId || fav.id)
+        : (fav.menuItemId || fav.id);
+      
+      let added = false;
+      let removedItem = null;
 
-    return { added };
-  }, []);
+      const matchesTarget = (item) => {
+        const itemIsRestaurant = item?.type === 'restaurant' || !item?.menuItemId;
+        if (isRestaurant) {
+          return itemIsRestaurant && String(item.restaurantId || item.id) === String(targetId);
+        }
+        return !itemIsRestaurant && String(item.menuItemId || item.id) === String(targetId);
+      };
+
+      // Optimistic update
+      setFavourites(prev => {
+        const exists = prev.some(matchesTarget);
+        
+        if (exists) {
+          added = false;
+          removedItem = prev.find(matchesTarget);
+          return prev.filter(x => !matchesTarget(x));
+        }
+        added = true;
+        return [fav, ...prev];
+      });
+
+      // Store pending state for potential revert
+      pendingToggles.current.set(`${fav.type}:${targetId}`, {
+        wasAdded: added,
+        item: added ? fav : removedItem,
+      });
+
+      // Debounced API call
+      debouncedToggleAPI(targetId, fav.type, isRestaurant, fetchFavourites);
+
+      return { added };
+    },
+    [debouncedToggleAPI],
+  );
 
   const favouritesCount = useMemo(() => favourites.length, [favourites]);
 
@@ -78,6 +251,9 @@ export const FavouritesProvider = ({ children }) => {
       addFavourite,
       removeFavourite,
       toggleFavourite,
+      fetchFavourites,
+      isLoading,
+      isInitialized,
     }),
     [
       favourites,
@@ -86,6 +262,9 @@ export const FavouritesProvider = ({ children }) => {
       addFavourite,
       removeFavourite,
       toggleFavourite,
+      fetchFavourites,
+      isLoading,
+      isInitialized,
     ],
   );
 

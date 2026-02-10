@@ -26,6 +26,10 @@ import OrderConfirmedModal from '../components/OrderConfirmedModal';
 import DeliveryPickupSheet from '../components/DeliveryPickupSheet';
 import AddressSheet from '../components/AddressSheet';
 import PaymentMethodSheet from '../components/PaymentMethodSheet';
+import { wp, hp } from '../utils/responsive';
+import { scale } from '../utils/scale';
+import { FONT_SIZES } from '../theme/typography';
+import { SPACING } from '../theme/spacing';
 
 export default function ReviewOrderScreen() {
   const navigation = useNavigation();
@@ -417,9 +421,16 @@ export default function ReviewOrderScreen() {
             <Text style={styles.sectionTitle}>Payment Method</Text>
             <ChevronRight size={18} color="#999" />
           </Pressable>
-          <Text style={styles.paymentValue}>
-            {paymentMethod?.label || 'Credit Card'}
-          </Text>
+          <Pressable
+            onPress={() => {
+              setSheetBackTarget(prev => ({ ...prev, payment: null }));
+              setActiveSheet('payment');
+            }}
+          >
+            <Text style={styles.paymentValue}>
+              {paymentMethod?.label || 'Credit Card'}
+            </Text>
+          </Pressable>
           {errors.payment && (
             <Text style={styles.errorText}>{errors.payment}</Text>
           )}
@@ -585,7 +596,7 @@ export default function ReviewOrderScreen() {
           )
         }
       />
-
+   
       <PaymentMethodSheet
         visible={activeSheet === 'payment'}
         selectedId={paymentMethod?.id || null}
@@ -617,40 +628,40 @@ export default function ReviewOrderScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+  safe: { flex: 1, backgroundColor: '#ffffff' },
 
   /* ---------- HEADER ---------- */
   header: {
-    height: 52,
+    height: hp(7),
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: '#EFEFEF',
   },
   backBtn: {
-    width: 32,
-    height: 32,
+    width: scale(32),
+    height: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: '#111',
   },
-  headerRightSpace: { width: 32 },
+  headerRightSpace: { width: scale(32) },
 
   scroll: {
-    paddingBottom: 140,
+    paddingBottom: hp(18),
   },
 
   /* ---------- SECTIONS ---------- */
   sectionCard: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: '#EFEFEF',
     backgroundColor: '#FFF',
@@ -663,74 +674,74 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '700',
     color: '#111',
   },
 
   /* ---------- DELIVERY ---------- */
   deliveryValue: {
-    marginTop: 6,
-    fontSize: 12,
+    marginTop: SPACING.xs,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#111',
   },
   deliverySub: {
-    marginTop: 2,
-    fontSize: 11,
+    marginTop: scale(2),
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '500',
     color: '#777',
   },
 
   /* ---------- ADDRESS ---------- */
   addressRow: {
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
   addressLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '700',
     color: '#111',
   },
   addressLine: {
-    marginTop: 4,
-    fontSize: 11,
+    marginTop: scale(4),
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '500',
     color: '#666',
-    lineHeight: 15,
+    lineHeight: scale(15),
   },
 
   leaveRow: {
-    marginTop: 12,
+    marginTop: SPACING.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   leaveText: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#111',
   },
 
   /* ---------- TIP ---------- */
   tipSub: {
-    marginTop: 6,
-    fontSize: 11,
+    marginTop: SPACING.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '500',
     color: '#777',
-    lineHeight: 15,
+    lineHeight: scale(15),
   },
 
   tipRow: {
-    marginTop: 10,
+    marginTop: SPACING.sm,
     flexDirection: 'row',
-    gap: 8,
+    gap: SPACING.xs,
     flexWrap: 'wrap',
   },
 
   tipChip: {
-    height: 30,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    height: scale(30),
+    paddingHorizontal: scale(14),
+    borderRadius: scale(16),
     borderWidth: 1,
     borderColor: '#E5E5E5',
     alignItems: 'center',
@@ -744,7 +755,7 @@ const styles = StyleSheet.create({
   },
 
   tipChipText: {
-    fontSize: 11,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#111',
   },
@@ -755,111 +766,111 @@ const styles = StyleSheet.create({
 
   /* ---------- PAYMENT ---------- */
   paymentValue: {
-    marginTop: 6,
-    fontSize: 12,
+    marginTop: SPACING.xs,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#111',
   },
 
   /* ---------- BILL ---------- */
   billRow: {
-    marginTop: 10,
+    marginTop: SPACING.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
 
   billLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#555',
   },
 
   billValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#111',
   },
 
   billFree: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '700',
     color: '#E53935',
   },
 
   offerSub: {
-    marginTop: 2,
-    fontSize: 11,
+    marginTop: scale(2),
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   offerValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   dashedLine: {
-    marginTop: 12,
+    marginTop: SPACING.md,
     borderTopWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#DDD',
   },
 
   billRowStrong: {
-    marginTop: 12,
+    marginTop: SPACING.md,
   },
 
   billStrong: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '800',
     color: '#111',
   },
 
   tipRowHighlight: {
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    marginTop: SPACING.sm,
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(10),
     backgroundColor: '#FFF5F5',
-    borderRadius: 8,
-    borderLeftWidth: 3,
+    borderRadius: scale(8),
+    borderLeftWidth: scale(3),
     borderLeftColor: '#FF3D3D',
   },
 
   tipLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   tipValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   billRowFinal: {
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    marginTop: SPACING.md,
+    paddingVertical: scale(6),
+    paddingHorizontal: SPACING.sm,
     backgroundColor: '#111',
-    borderRadius: 8,
+    borderRadius: scale(8),
   },
 
   billFinal: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '800',
     color: '#FFF',
   },
 
   /* ---------- TERMS ---------- */
   termsText: {
-    marginTop: 12,
-    paddingHorizontal: 16,
-    fontSize: 11,
+    marginTop: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '500',
     color: '#666',
-    lineHeight: 15,
+    lineHeight: scale(15),
   },
 
   termsLink: {
@@ -874,11 +885,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.sm,
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderTopColor: '#EEE',
@@ -886,28 +897,28 @@ const styles = StyleSheet.create({
 
   bottomLeft: {},
   bottomTotal: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.md,
     fontWeight: '800',
     color: '#111',
   },
   bottomSub: {
-    marginTop: 2,
-    fontSize: 11,
+    marginTop: scale(2),
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '500',
     color: '#777',
   },
 
   placeOrderBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: scale(44),
+    borderRadius: scale(12),
     backgroundColor: '#FF3D3D',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   placeOrderText: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '800',
     color: '#FFF',
   },
@@ -917,20 +928,20 @@ const styles = StyleSheet.create({
   },
 
   submitErrorContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xs,
     backgroundColor: '#FFF',
   },
 
   submitErrorText: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#FF3D3D',
     textAlign: 'center',
   },
   errorText: {
-    marginTop: 6,
-    fontSize: 12,
+    marginTop: SPACING.xs,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#FF3D3D',
   },

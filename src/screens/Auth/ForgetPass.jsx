@@ -18,6 +18,9 @@ import { useNavigation } from '@react-navigation/native';
 import MaterialTextInput from '../../components/input/MaterialTextInput';
 import Toast from 'react-native-toast-message';
 import { forgotPasswordInitiate } from '../../services/authService';
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
 
 export default function ForgetPass() {
   const navigation = useNavigation();
@@ -76,7 +79,7 @@ export default function ForgetPass() {
     }
   };
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -127,7 +130,7 @@ export default function ForgetPass() {
                   label="Email"
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="khalid_ai@gmail.com"
+                  placeholder="Enter your email"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   error={!!emailError}
@@ -155,13 +158,13 @@ export default function ForgetPass() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFF' },
+  safe: { flex: 1, backgroundColor: '#ed1c24' },
   container: { flex: 1, backgroundColor: '#FFF' },
   innerContainer: { flex: 1 },
 
   header: {
-    height: 56,
-    paddingHorizontal: 14,
+    height: hp(7),
+    paddingHorizontal: wp(3.89),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -169,16 +172,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: wp(11.11),
+    height: hp(5),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: '#111' },
-  headerRightSpace: { width: 40 },
+  headerTitle: { fontSize: FONT.md, fontWeight: '800', color: '#111' },
+  headerRightSpace: { width: wp(11.11) },
 
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: hp(3),
   },
 
   heroWrap: {
@@ -186,7 +189,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 300,
+    height: hp(37.5),
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -194,63 +197,63 @@ const styles = StyleSheet.create({
   },
   heroCircle: {
     position: 'absolute',
-    width: 520,
-    height: 600,
-    borderRadius: 260,
-    top: -310,
+    width: wp(144.44),
+    height: hp(75),
+    borderRadius: wp(72.22),
+    top: hp(-38.75),
     backgroundColor: 'rgba(255,61,61,0.06)',
   },
   heroImg: {
-    width: 250,
-    height: 250,
-    marginTop: -10,
+    width: wp(69.44),
+    height: hp(31.25),
+    marginTop: hp(-1.25),
   },
   heroSpacer: {
-    height: 220,
+    height: hp(27.5),
   },
 
   content: {
-    marginTop: 40,
-    paddingHorizontal: 18,
+    marginTop: hp(5),
+    paddingHorizontal: wp(5),
     backgroundColor: '#FFF',
     position: 'relative',
     zIndex: 2,
     elevation: 0,
   },
   desc: {
-    fontSize: 16,
+    fontSize: FONT.md,
     fontWeight: '800',
     color: '#111',
-    lineHeight: 22,
-    marginBottom: 20,
+    lineHeight: hp(2.75),
+    marginBottom: hp(2.5),
   },
   label: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#666',
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: hp(1),
   },
   inputBox: {
-    height: 48,
+    height: hp(6),
     borderWidth: 1,
     borderColor: '#D9E0F2',
     backgroundColor: '#F7F9FF',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: scale(12),
+    paddingHorizontal: wp(3.89),
     justifyContent: 'center',
   },
-  input: { fontSize: 14, color: '#111', fontWeight: '700' },
+  input: { fontSize: FONT.sm, color: '#111', fontWeight: '700' },
 
   btn: {
-    marginTop: 18,
-    height: 54,
-    backgroundColor: '#E11D2E',
-    borderRadius: 16,
+    marginTop: hp(2.25),
+    height: hp(6.75),
+    backgroundColor: '#ed1c24',
+    borderRadius: scale(16),
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnDisabled: {
     opacity: 0.6,
   },
-  btnText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  btnText: { color: '#FFF', fontSize: FONT.sm, fontWeight: '900' },
 });

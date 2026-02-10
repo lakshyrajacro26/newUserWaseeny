@@ -19,6 +19,10 @@ import {
 import { Search as SearchIcon, RotateCcw, X } from 'lucide-react-native';
 import { searchRestaurantsAndProducts, getSearchSuggestions } from '../../services/searchService';
 import { getRestaurantDetails } from '../../services/restaurantService';
+import { wp, hp } from '../../utils/responsive';
+import { scale, fontScale } from '../../utils/scale';
+import { FONT_SIZES } from '../../theme/typography';
+import { SPACING } from '../../theme/spacing';
 
 const FALLBACK_IMAGE = require('../../assets/images/Noodle.png');
 const SEARCH_DEBOUNCE_DELAY = 500; // Debounce delay in milliseconds
@@ -421,10 +425,12 @@ export default function SearchScreen() {
 
       if (!restaurantId) {
         console.error('❌ No restaurantId found in dish data:', item);
-        Alert.alert(
-          'Restaurant Info Missing',
-          'Could not find restaurant information for this dish. Please try another dish or search.'
-        );
+        Toast.show({
+          type: 'topError',
+          text1: 'Restaurant Info Missing',
+          text2: 'Could not find restaurant information for this dish. Please try another dish or search.',
+          position: 'top',
+        });
         return;
       }
 
@@ -447,10 +453,12 @@ export default function SearchScreen() {
             });
       } catch (error) {
         console.error('❌ Error fetching restaurant details:', error?.message);
-        Alert.alert(
-          'Error',
-          'Failed to load restaurant details. Please try again.'
-        );
+        Toast.show({
+          type: 'topError',
+          text1: 'Error',
+          text2: 'Failed to load restaurant details. Please try again.',
+          position: 'top',
+        });
       } finally {
         setFetchingRestaurantId(null);
       }
@@ -631,13 +639,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.xl,
   },
 
   title: {
-    marginTop: 50,
-    marginBottom: 20,
-    fontSize: 18,
+    marginTop: hp(6.17),
+    marginBottom: SPACING.xl,
+    fontSize: FONT_SIZES.md,
     fontWeight: '600',
     textAlign: 'center',
     color: '#000',
@@ -646,122 +654,122 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
-    borderRadius: 22,
+    height: scale(44),
+    borderRadius: scale(22),
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    paddingHorizontal: 14,
-    marginBottom: 24,
+    paddingHorizontal: scale(14),
+    marginBottom: SPACING.xxl,
   },
 
   input: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 13,
+    marginLeft: scale(10),
+    fontSize: fontScale(11),
     color: '#000',
   },
   clearBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   sectionTitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '500',
     color: '#6E6E6E',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
 
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: scale(40),
   },
 
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZES.xs,
     color: '#6E6E6E',
   },
 
   recentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: scale(14),
   },
 
   recentText: {
-    marginLeft: 10,
-    fontSize: 14,
+    marginLeft: scale(10),
+    fontSize: FONT_SIZES.xs,
     color: '#000',
   },
 
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: scale(10),
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
   resultImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(10),
     backgroundColor: '#F4F4F4',
   },
   resultContent: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: scale(10),
   },
   resultTitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#111',
   },
   resultSub: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: scale(2),
+    fontSize: fontScale(10),
     color: '#6E6E6E',
   },
   resultPrice: {
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: scale(4),
+    fontSize: fontScale(10),
     color: '#111',
     fontWeight: '600',
   },
   resultType: {
-    fontSize: 10,
+    fontSize: fontScale(8),
     color: '#9E9E9E',
   },
   resultTypeContainer: {
-    minWidth: 50,
+    minWidth: scale(50),
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   emptyText: {
-    fontSize: 12,
+    fontSize: fontScale(10),
     color: '#9E9E9E',
-    marginBottom: 10,
+    marginBottom: scale(10),
   },
 
   tagWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: scale(10),
   },
 
   tag: {
     backgroundColor: '#FFECEC',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(6),
+    borderRadius: scale(6),
   },
 
   tagText: {
-    fontSize: 13,
+    fontSize: fontScale(11),
     color: '#000',
   },
 });

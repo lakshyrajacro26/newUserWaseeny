@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import MaterialTextInput from '../../components/input/MaterialTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
+import MaterialTextInput from '../../components/input/MaterialTextInput';
 import apiClient from '../../config/apiClient';
 import { USER_ROUTES } from '../../config/routes';
 
@@ -64,16 +64,22 @@ const ChangePasswordScreen = () => {
         newPassword,
       });
 
-      Alert.alert('Success', 'Password updated successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      Toast.show({
+        type: 'topSuccess',
+        text1: 'Success',
+        text2: 'Password updated successfully!',
+        position: 'top',
+      });
+      setTimeout(() => navigation.goBack(), 600);
     } catch (error) {
       const message =
         error?.response?.data?.message || 'Failed to update password';
-      Alert.alert('Error', message);
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: message,
+        position: 'top',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -221,7 +227,7 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     height: s(44),
-    backgroundColor: '#F31D1D',
+    backgroundColor: '#ed1c24',
     borderRadius: s(12),
     alignItems: 'center',
     justifyContent: 'center',

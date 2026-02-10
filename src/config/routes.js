@@ -47,4 +47,18 @@ export const USER_ROUTES = {
   changePassword: '/api/user/change-password',
   addresses: '/api/user/address',
   addressById: '/api/user/address/:id',
+  deleteAccount: '/api/user/account',
+};
+
+export const FAVORITE_ROUTES = {
+  getFavoriteRestaurants: '/api/user/favorites/restaurants',
+  toggleFavoriteRestaurant: '/api/user/favorites/restaurants/:id',
+  getFavoriteProducts: '/api/user/favorites/products',
+  toggleFavoriteProduct: '/api/user/favorites/products/:id',
+};
+
+export const WALLET_ROUTES = {
+  getWallet: '/api/wallet',
+  getBalance: '/api/wallet/balance',
+  getTransactions: '/api/wallet/transactions',
 };

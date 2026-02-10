@@ -9,12 +9,17 @@ import {
   Image,
   Pressable,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, ChevronRight } from 'lucide-react-native';
 
 import { CartContext } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES } from '../../theme/typography';
+import { SPACING } from '../../theme/spacing';
 
 const FALLBACK_ITEM_IMAGE = require('../../assets/images/Noodle.png');
 
@@ -211,7 +216,7 @@ export default function OrdersScreen() {
           data={data}
           keyExtractor={item => String(item._id || item.id)}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: SPACING.lg }}
           renderItem={({ item }) => <OrderCard item={item} />}
         />
       )}
@@ -319,13 +324,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.lg,
   },
 
   header: {
-    marginTop: 48,
-    marginBottom: 20,
-    fontSize: 18,
+    marginTop: hp(6),
+    marginBottom: SPACING.lg,
+    fontSize: FONT_SIZES.lg,
     fontWeight: '600',
     textAlign: 'center',
     color: '#000000',
@@ -334,15 +339,15 @@ const styles = StyleSheet.create({
   tabWrapper: {
     flexDirection: 'row',
     backgroundColor: '#F2F2F2',
-    borderRadius: 22,
-    padding: 4,
-    marginBottom: 16,
+    borderRadius: scale(22),
+    padding: scale(4),
+    marginBottom: SPACING.lg,
   },
 
   tabBtn: {
     flex: 1,
-    height: 36,
-    borderRadius: 18,
+    height: scale(36),
+    borderRadius: scale(18),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -352,7 +357,7 @@ const styles = StyleSheet.create({
   },
 
   tabText: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#000000',
     fontWeight: '500',
   },
@@ -362,29 +367,29 @@ const styles = StyleSheet.create({
   },
 
   searchBox: {
-    height: 40,
-    borderRadius: 20,
+    height: scale(40),
+    borderRadius: scale(20),
     borderWidth: 1,
     borderColor: '#E0E0E0',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    marginBottom: 16,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.lg,
   },
 
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 13,
+    marginLeft: SPACING.sm,
+    fontSize: FONT_SIZES.xs,
     color: '#000',
   },
 
   card: {
     borderWidth: 1,
     borderColor: '#EEEEEE',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    borderRadius: scale(12),
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
   },
 
   rowBetween: {
@@ -393,77 +398,77 @@ const styles = StyleSheet.create({
   },
 
   restaurant: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     color: '#000',
   },
 
   cuisine: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#828282',
-    marginTop: 2,
+    marginTop: scale(2),
   },
 
   itemsWrapper: {
-    marginVertical: 12,
+    marginVertical: SPACING.sm,
   },
 
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: scale(6),
   },
 
   itemImg: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    marginRight: 8,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(6),
+    marginRight: SPACING.sm,
   },
 
   itemTitle: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#000',
   },
 
   itemSub: {
-    fontSize: 11,
+    fontSize: FONT_SIZES.xs,
     color: '#828282',
   },
 
   moreText: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#828282',
-    marginLeft: 44,
-    marginTop: 2,
+    marginLeft: scale(44),
+    marginTop: scale(2),
   },
 
   date: {
-    fontSize: 11,
+    fontSize: FONT_SIZES.xs,
     color: '#828282',
   },
 
   status: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: scale(4),
   },
 
   price: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '700',
     color: '#000',
   },
 
   noteBox: {
     backgroundColor: '#FFF3E0',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 10,
+    borderRadius: scale(8),
+    padding: scale(10),
+    marginTop: scale(10),
   },
 
   noteText: {
-    fontSize: 11,
+    fontSize: FONT_SIZES.xs,
     color: '#4F4F4F',
   },
 
@@ -471,24 +476,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: SPACING.sm,
   },
 
   review: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#EB5757',
   },
 
   reorderBtn: {
     backgroundColor: '#EB5757',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: scale(8),
   },
 
   reorderText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
   },
 
@@ -499,8 +504,8 @@ const styles = StyleSheet.create({
   },
 
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
+    marginTop: SPACING.sm,
+    fontSize: FONT_SIZES.sm,
     color: '#828282',
   },
 
@@ -508,20 +513,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: wp(8),
   },
 
   emptyText: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: '#000000',
     textAlign: 'center',
   },
 
   emptySubText: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#828282',
-    marginTop: 8,
+    marginTop: SPACING.sm,
     textAlign: 'center',
   },
 });

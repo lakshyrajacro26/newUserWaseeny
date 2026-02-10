@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react-native';
 import LogoIcon from '../assets/icons/LogoIcon.svg';
@@ -28,34 +28,45 @@ const ResetPassword = () => {
   // Validation and navigation
   const handleCreate = () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill both fields');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Please fill both fields',
+        position: 'top',
+      });
       return;
     }
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Password must be at least 6 characters',
+        position: 'top',
+      });
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Passwords do not match',
+        position: 'top',
+      });
       return;
     }
 
     // Success alert
-    Alert.alert(
-      'Success',
-      'Your password has been reset successfully!',
-      [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('MainPage'), // Navigate after alert
-        },
-      ],
-      { cancelable: false },
-    );
+    Toast.show({
+      type: 'topSuccess',
+      text1: 'Success',
+      text2: 'Your password has been reset successfully!',
+      position: 'top',
+    });
+    setTimeout(() => navigation.navigate('MainPage'), 600);
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -151,7 +162,7 @@ export default ResetPassword;
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F4F4F4',
+    backgroundColor: '#ed1c24',
   },
 
   container: {

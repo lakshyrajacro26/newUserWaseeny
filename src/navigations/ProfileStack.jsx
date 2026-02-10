@@ -8,6 +8,8 @@ import ChangePasswordScreen from '../screens/Profile/ChangePasswordScreen';
 import DeleteAccountPopUp from '../screens/Profile/DeleteAccountPopUp';
 import ProfileEdit from '../screens/Profile/ProfileEdit';
 import AddAddressScreen from '../screens/Profile/AddAddressScreen';
+import AddressesScreen from '../screens/Profile/AddressesScreen';
+import AddressFormScreen from '../screens/Profile/AddressFormScreen';
 import PaymentSetting from '../screens/Profile/ProfilePaymentSet';
 import PrivacyPolicy from '../screens/Profile/PrivacyPolicy';
 import TermsConditionScreen from '../screens/Profile/TermsConditionScreen';
@@ -37,7 +39,9 @@ export default function ProfileStack() {
 
       {/* Profile shortcuts */}
       <Stack.Screen name="ProfileEdit" component={ProfileEdit} />
+      <Stack.Screen name="AddressesScreen" component={AddressesScreen} />
       <Stack.Screen name="AddAddressScreen" component={AddAddressScreen} />
+      <Stack.Screen name="AddressFormScreen" component={AddressFormScreen} />
       <Stack.Screen name="NewAddress" component={NewAddress} />
       <Stack.Screen name="PaymentSetting" component={PaymentSetting} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />

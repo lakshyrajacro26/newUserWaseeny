@@ -1,116 +1,80 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getAuthToken, getAuthUser, clearAuth, saveAuth } from '../services/storage';
-import apiClient from '../config/apiClient';
-import { AUTH_ROUTES } from '../config/routes';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { checkVerificationStatusApi, loginApi } from '../services/authService';
 
-export const AuthContext = createContext({});
+export const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  /**
-   * PRODUCTION PATTERN: Initialize auth state once at app launch
-   * Reads from AsyncStorage only once, avoiding repeated disk I/O
-   */
-  const initializeAuth = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const storedToken = await getAuthToken();
-      const storedUser = await getAuthUser();
-
-      if (storedToken) {
-        setToken(storedToken);
-        setUser(storedUser || null);
-        setIsAuthenticated(true);
-      } else {
-        setToken(null);
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    } catch (error) {
-      console.error('Failed to initialize auth:', error);
-      setToken(null);
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-      setIsInitialized(true);
-    }
-  }, []);
-
-  /**
-   * Initialize auth state on mount
-   */
   useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
-
-  /**
-   * Set authenticated user (called after login/signup)
-   * Saves to AsyncStorage immediately for persistence
-   */
-  const setAuthenticatedUser = useCallback(async (newToken, newUser) => {
-    try {
-      await saveAuth({ token: newToken, user: newUser });
-      setToken(newToken);
-      setUser(newUser || null);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Failed to set authenticated user:', error);
-      throw error;
-    }
+    checkAuthStatus();
   }, []);
 
-  /**
-   * Logout handler
-   * Calls logout API endpoint first, then clears AsyncStorage and resets in-memory state
-   */
-  const logout = useCallback(async () => {
+  const checkAuthStatus = async () => {
     try {
-      // Call logout API endpoint
-      try {
-        await apiClient.post(AUTH_ROUTES.logout);
-      } catch (apiError) {
-        // Log API error but continue with local logout
-        console.warn('Logout API call failed - clearing auth locally:', apiError.message);
+      // 1️⃣ Check local user
+      const storedUser = await AsyncStorage.getItem('userData');
+
+      if (!storedUser) {
+        setUser(null);
+        return;
       }
-
-      // Clear local auth state
-      await clearAuth();
-      setToken(null);
-      setUser(null);
-      setIsAuthenticated(false);
+        setUser(JSON.parse(storedUser));
+     
+      // 2️⃣ OPTIONAL but BEST: verify cookie with backend
+      // const response = await checkVerificationStatusApi(); // protected API
+      // setUser(response.data.user);
     } catch (error) {
-      console.error('Failed to logout:', error);
-      throw error;
+      setUser(null);
+      await AsyncStorage.removeItem('userData');
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  const value = {
-    isAuthenticated,
-    user,
-    token,
-    isLoading,
-    isInitialized,
-    setAuthenticatedUser,
-    logout,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+  const login = async (email, password) => {
+    try {
+      const response = await loginApi({ email, password });
+      console.log("response", response.data)
+      const { user } = response.data;
 
-/**
- * Hook to use auth context
- * Production apps should always check isInitialized before routing
- */
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-}
+      if (user) {
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+        setUser(user);
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error.response?.data?.message ||
+          'Something went wrong, please try again',
+      };
+    }
+  };
+
+  const logout = async () => {
+    await AsyncStorage.removeItem('userData');
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        loading,
+        isAuthenticated: !!user,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);

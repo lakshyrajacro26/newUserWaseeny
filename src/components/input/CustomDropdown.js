@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dropdownButtonError: {
-    borderColor: '#E11D2E',
+    borderColor: '#ed1c24',
   },
   dropdownText: {
     fontSize: 14,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   errorText: {
-    color: '#E11D2E',
+    color: '#ed1c24',
     fontSize: 12,
     marginTop: 6,
     marginLeft: 2,
@@ -212,12 +212,12 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   optionTextSelected: {
-    color: '#E11D2E',
+    color: '#ed1c24',
     fontWeight: '600',
   },
   checkmark: {
     fontSize: 18,
-    color: '#E11D2E',
+    color: '#ed1c24',
     fontWeight: '700',
   },
 });

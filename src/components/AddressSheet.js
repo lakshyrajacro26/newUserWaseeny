@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Alert,
   BackHandler,
   Dimensions,
   Modal,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -223,14 +223,24 @@ export default function AddressSheet({
       if (Platform.OS === 'android') {
         ToastAndroid.show(message, ToastAndroid.SHORT);
       } else {
-        Alert.alert('Success', message);
+        Toast.show({
+          type: 'topSuccess',
+          text1: 'Success',
+          text2: message,
+          position: 'top',
+        });
       }
     } catch (error) {
       const message = error?.message || 'Failed to remove address';
       if (Platform.OS === 'android') {
         ToastAndroid.show(message, ToastAndroid.SHORT);
       } else {
-        Alert.alert('Error', message);
+        Toast.show({
+          type: 'topError',
+          text1: 'Error',
+          text2: message,
+          position: 'top',
+        });
       }
     }
   };

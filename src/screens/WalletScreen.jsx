@@ -5,9 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { User, Heart, ShoppingBag, CreditCard } from 'lucide-react-native';
 import { CartContext } from '../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
@@ -51,14 +52,24 @@ export default function PaymentScreen() {
 
   const handlePay = () => {
     if (!selectedPayment) {
-      Alert.alert('Select Payment', 'Please select a payment method first.');
+      Toast.show({
+        type: 'topError',
+        text1: 'Select Payment',
+        text2: 'Please select a payment method first.',
+        position: 'top',
+      });
       return;
     }
-    Alert.alert('Payment Success', `Paid via ${selectedPayment.name}`);
+    Toast.show({
+      type: 'topSuccess',
+      text1: 'Payment Success',
+      text2: `Paid via ${selectedPayment.name}`,
+      position: 'top',
+    });
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <View style={styles.header}>
         <User size={22} color="#555" />
@@ -137,9 +148,15 @@ export default function PaymentScreen() {
         {/* ADD CARD BUTTON */}
         <TouchableOpacity
           style={styles.addCardBtn}
-          onPress={() => Alert.alert('Add Card')}
+          onPress={() => Toast.show({
+            type: 'topSuccess',
+            text1: 'Add Card',
+            text2: 'Card addition feature coming soon',
+            position: 'top',
+            props: { showLoader: false },
+          })}
         >
-          <CreditCard size={18} color="#E91E63" />
+          <CreditCard size={18} color="#ed1c24" />
           <Text style={styles.addCardText}>Add New Card</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -148,12 +165,12 @@ export default function PaymentScreen() {
       <TouchableOpacity style={styles.payBtn} onPress={handlePay}>
         <Text style={styles.payText}>Pay Now</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F8F8' },
+  container: { flex: 1, backgroundColor: '#ed1c24' },
 
   header: {
     flexDirection: 'row',
@@ -171,7 +188,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -6,
     top: -6,
-    backgroundColor: '#E91E63',
+    backgroundColor: '#ed1c24',
     width: 16,
     height: 16,
     borderRadius: 8,
@@ -218,7 +235,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  paymentSelected: { borderWidth: 2, borderColor: '#E91E63' },
+  paymentSelected: { borderWidth: 2, borderColor: '#ed1c24' },
   paymentIcon: {
     width: 32,
     height: 32,
@@ -230,7 +247,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#E91E63',
+    backgroundColor: '#ed1c24',
   },
 
   addCardBtn: {
@@ -252,7 +269,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 15,
     fontWeight: '600',
-    color: '#E91E63',
+    color: '#ed1c24',
   },
 
   cartItem: {
@@ -271,7 +288,7 @@ const styles = StyleSheet.create({
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: '#E91E63',
+    backgroundColor: '#ed1c24',
     height: 50,
     borderRadius: 25,
     alignItems: 'center',

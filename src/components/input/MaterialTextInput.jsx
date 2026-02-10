@@ -56,7 +56,7 @@ const MaterialTextInput = ({
         theme={{
           colors: {
             primary: '#000000',
-            error: '#E11D2E',
+            error: '#ed1c24',
             placeholder: '#9E9E9E',
             text: '#000000',
             background: isFocused ? '#FFFFFF' : '#F2F2F2',
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     tintColor: '#9AA0A6',
   },
   errorText: {
-    color: '#E11D2E',
+    color: '#ed1c24',
     fontSize: 12,
     marginTop: 4,
     marginLeft: 2,

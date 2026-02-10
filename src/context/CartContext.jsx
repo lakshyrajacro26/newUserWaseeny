@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useMemo, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useAuth } from './AuthContext';
 import { useRef } from 'react';
 
@@ -245,12 +245,22 @@ export const CartProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ CartContext: Error adding to cart:', error?.message, error?.status);
       if (error?.status === 401 || error?.status === 403) {
-        Alert.alert('Session Expired', 'Please log in again.');
+        Toast.show({
+          type: 'topError',
+          text1: 'Session Expired',
+          text2: 'Please log in again.',
+          position: 'top',
+        });
       } else if (error?.message?.includes('Network')) {
         // Network error - don't show alert, just log
         console.warn('CartContext: Network error caught, not showing alert');
       } else {
-        Alert.alert('Error', error?.message || 'Failed to add item to cart');
+        Toast.show({
+          type: 'topError',
+          text1: 'Error',
+          text2: error?.message || 'Failed to add item to cart',
+          position: 'top',
+        });
       }
       return { error: true };
     } finally {
@@ -265,7 +275,12 @@ export const CartProvider = ({ children }) => {
       await fetchCart();
     } catch (error) {
       console.error('Error removing from cart:', error);
-      Alert.alert('Error', 'Failed to remove item');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Failed to remove item',
+        position: 'top',
+      });
     } finally {
       setLoading(false);
     }
@@ -341,7 +356,12 @@ export const CartProvider = ({ children }) => {
   const setItemQuantity = useCallback(async (id, quantity) => {
     const item = cart.find(i => i.id === id);
     if (!item) {
-      Alert.alert('Error', 'Item not found in cart');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Item not found in cart',
+        position: 'top',
+      });
       return;
     }
 
@@ -355,7 +375,12 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error updating quantity:', error);
-      Alert.alert('Error', error?.message || 'Failed to update quantity');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: error?.message || 'Failed to update quantity',
+        position: 'top',
+      });
     } finally {
       setLoading(false);
     }
@@ -540,7 +565,12 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('CartContext: Error in fresh cart:', error?.message);
-      Alert.alert('Error', error?.message || 'Failed to add item');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: error?.message || 'Failed to add item',
+        position: 'top',
+      });
     } finally {
       setConflictModalLoading(false);
     }

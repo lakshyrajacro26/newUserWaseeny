@@ -17,6 +17,10 @@ import LinearGradient from 'react-native-linear-gradient';
 import apiClient from '../../config/apiClient';
 import { ORDER_ROUTES } from '../../config/routes';
 import { toNumber } from '../../services/cartPricing';
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES } from '../../theme/typography';
+import { SPACING } from '../../theme/spacing';
 
 const FALLBACK_HEADER = require('../../assets/images/Noodle.png');
 
@@ -396,18 +400,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    gap: 16,
+    gap: SPACING.lg,
   },
 
   loadingText: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.sm,
     color: '#666666',
     fontWeight: '500',
-    marginTop: 12,
+    marginTop: SPACING.md,
   },
 
   imageWrapper: {
-    height: 230,
+    height: hp(30),
     width: '100%',
   },
 
@@ -425,9 +429,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 10,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: scale(24),
+    paddingBottom: scale(10),
   },
 
   headerTitleContainer: {
@@ -436,16 +440,16 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.lg,
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -454,9 +458,9 @@ const styles = StyleSheet.create({
   },
 
   moreBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -467,9 +471,9 @@ const styles = StyleSheet.create({
   imageContent: {
     position: 'absolute',
     bottom: 0,
-    left: 16,
-    right: 16,
-    paddingBottom: 14,
+    left: SPACING.lg,
+    right: SPACING.lg,
+    paddingBottom: scale(14),
   },
 
   headerInfoRow: {
@@ -480,30 +484,30 @@ const styles = StyleSheet.create({
 
   headerTextBlock: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: SPACING.md,
   },
 
   restaurantImageName: {
-    fontSize: 24,
+    fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
     color: '#111111',
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
 
   restaurantImageTags: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.sm,
     color: '#666666',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
 
   menuButtonContainer: {
     alignSelf: 'flex-start',
-    paddingVertical: 6,
+    paddingVertical: scale(6),
   },
 
   menuButtonText: {
     color: '#E53935',
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
   },
 
@@ -511,93 +515,93 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E53935',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: scale(8),
+    borderRadius: scale(8),
+    gap: SPACING.xs,
   },
 
   callButtonText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
   },
 
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: scale(30),
   },
 
   statusSection: {
     backgroundColor: '#FDEEEE',
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    paddingHorizontal: scale(14),
+    paddingVertical: SPACING.md,
+    borderRadius: scale(12),
   },
 
   statusText: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#111111',
     textAlign: 'center',
   },
 
   section: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
     borderColor: '#F3F3F3',
   },
 
   sectionTitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     color: '#000000',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
 
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingVertical: 2,
+    marginBottom: SPACING.md,
+    paddingVertical: scale(2),
   },
 
   itemThumb: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    marginRight: 10,
+    width: scale(42),
+    height: scale(42),
+    borderRadius: scale(10),
+    marginRight: SPACING.sm,
     backgroundColor: '#F3F3F3',
   },
 
   itemContent: {
     flex: 1,
-    marginRight: 10,
+    marginRight: SPACING.sm,
   },
 
   itemName: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '500',
     color: '#000000',
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
 
   itemSub: {
-    fontSize: 11,
+    fontSize: FONT_SIZES.xs - 1,
     color: '#828282',
   },
 
   price: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#000000',
   },
 
   billSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
     borderColor: '#EEEEEE',
   },
@@ -605,9 +609,9 @@ const styles = StyleSheet.create({
   billCard: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: scale(8),
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     backgroundColor: '#FAFAFA',
   },
 
@@ -615,29 +619,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 2,
+    marginBottom: SPACING.xs,
+    paddingVertical: scale(2),
   },
 
   billLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#4F4F4F',
   },
 
   billValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#000000',
     fontWeight: '500',
   },
 
   deliveryFree: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#EB5757',
     fontWeight: '500',
   },
 
   grandTotal: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#000000',
     fontWeight: '700',
   },
@@ -646,19 +650,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-    paddingVertical: 2,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+    paddingVertical: scale(2),
   },
 
   couponLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#4F4F4F',
     fontStyle: 'italic',
   },
 
   couponValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#EB5757',
     fontWeight: '500',
   },
@@ -667,36 +671,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.xs,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    paddingVertical: 2,
+    paddingVertical: scale(2),
   },
 
   paidLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#4F4F4F',
     fontWeight: '600',
   },
 
   paidValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#000000',
     fontWeight: '700',
   },
 
   savingsBox: {
-    marginTop: 16,
+    marginTop: SPACING.lg,
     backgroundColor: '#FDEEEE',
-    padding: 12,
-    borderRadius: 8,
+    padding: SPACING.md,
+    borderRadius: scale(8),
     borderWidth: 1,
     borderColor: '#FFE4B5',
   },
 
   savingsText: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#D35400',
     fontWeight: '600',
     textAlign: 'center',
@@ -709,23 +713,23 @@ const styles = StyleSheet.create({
   },
 
   infoCard: {
-    marginHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 12,
+    marginHorizontal: SPACING.lg,
+    marginTop: scale(6),
+    marginBottom: SPACING.md,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EDEDED',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: scale(12),
+    paddingHorizontal: scale(14),
+    paddingVertical: SPACING.md,
   },
 
   infoBlock: {
-    paddingVertical: 8,
+    paddingVertical: scale(8),
   },
 
   infoBlockCompact: {
-    paddingVertical: 10,
+    paddingVertical: scale(10),
   },
 
   divider: {
@@ -734,32 +738,32 @@ const styles = StyleSheet.create({
   },
 
   infoTitle: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: '#000000',
   },
 
   trackLink: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#EB5757',
     fontWeight: '600',
   },
 
   address: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#4F4F4F',
-    lineHeight: 18,
-    marginTop: 6,
+    lineHeight: scale(18),
+    marginTop: scale(6),
   },
 
   infoLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#828282',
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
 
   infoValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#000000',
     fontWeight: '500',
   },
@@ -767,11 +771,11 @@ const styles = StyleSheet.create({
   billDivider: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 8,
+    marginVertical: SPACING.xs,
   },
 
   tipValue: {
-    fontSize: 12,
+    fontSize: FONT_SIZES.xs,
     color: '#EB5757',
     fontWeight: '600',
   },

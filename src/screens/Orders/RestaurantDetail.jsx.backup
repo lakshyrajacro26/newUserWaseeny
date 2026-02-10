@@ -7,14 +7,11 @@ import {
   Image,
   TouchableOpacity,
   Pressable,
+  Dimensions,
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { wp, hp } from '../../utils/responsive';
-import { scale } from '../../utils/scale';
-import { FONT_SIZES } from '../../theme/typography';
-import { SPACING } from '../../theme/spacing';
 import {
   ArrowLeft,
   Heart,
@@ -30,8 +27,8 @@ import { FavouritesContext } from '../../context/FavouritesContext';
 import { buildCartLineId, toNumber } from '../../services/cartPricing';
 import { getRestaurantMenu } from '../../services/restaurantService';
 
+const { width } = Dimensions.get('window');
 const restaurantMenuCache = new Map();
-const MENU_CACHE_VERSION = 'menu-map-v2';
 
 export default function RestaurantDetail() {
   const route = useRoute();
@@ -82,6 +79,79 @@ export default function RestaurantDetail() {
   const restaurantParamId =
     initialParamRestaurant?.id ?? initialParamRestaurant?._id ?? null;
 
+  // Transform raw API data into structured menu format - SINGLE PASS
+  const transformMenuData = (apiData, paramId) => {
+    console.log('START: Single-pass transformation');
+    
+    const { restaurant, menu } = apiData;
+    let categories = [];
+    let allItems = [];
+    let menuStructure = [];
+
+    // Check if menu is object with category keys
+    if (menu && typeof menu === 'object' && !Array.isArray(menu)) {
+      console.log('Menu format: object with keys');
+      const keys = Object.keys(menu);
+      console.log('Categories found:', keys);
+
+      // Extract all categories and items in one pass
+      keys.forEach(catName => {
+        const catId = catName.toLowerCase().replace(/\s+/g, '_');
+        categories.push({ id: catId, name: catName });
+
+        const items = menu[catName];
+        if (Array.isArray(items)) {
+          items.forEach(item => {
+            allItems.push({
+              id: item._id,
+              name: item.name?.en || item.name || 'Item',
+              description: item.description?.en || item.description || '',
+              image: item.image || '',
+              price: item.basePrice || 0,
+              isVeg: item.isVeg || false,
+              categoryId: catId,
+              available: item.available !== false,
+              variations: item.variations || [],
+              addOns: item.addOns || [],
+              isBestSeller: item.isBestSeller || false,
+            });
+          });
+        }
+      });
+
+      // Build menu structure
+      menuStructure = [{ id: 'all', category: 'All Items', items: allItems }];
+      categories.forEach(cat => {
+        menuStructure.push({
+          id: cat.id,
+          category: cat.name,
+          items: allItems.filter(i => i.categoryId === cat.id),
+        });
+      });
+    }
+
+    const finalRestaurant = {
+      id: restaurant?._id || paramId,
+      _id: restaurant?._id || paramId,
+      name: restaurant?.name?.en || restaurant?.name || 'Restaurant',
+      image: restaurant?.image || '',
+      bannerImage: restaurant?.bannerImage || '',
+      rating: restaurant?.rating?.average || 0,
+      ratingCount: restaurant?.rating?.count || 0,
+      deliveryTime: restaurant?.deliveryTime || 30,
+      minOrderValue: restaurant?.minOrderValue || 0,
+      cuisines: restaurant?.cuisine || [],
+      isFreeDelivery: restaurant?.isFreeDelivery || false,
+      categories: [{ id: 'all', name: 'All' }, ...categories],
+      popularItems: allItems,
+      menu: menuStructure,
+      offers: [],
+    };
+
+    console.log('DONE: Transformed ' + allItems.length + ' items');
+    return finalRestaurant;
+  };
+
   const fetchMenu = useCallback(async () => {
     if (!restaurantParamId) {
       setMenuError('Restaurant ID is missing.');
@@ -90,14 +160,12 @@ export default function RestaurantDetail() {
 
     if (restaurantMenuCache.has(restaurantParamId)) {
       const cached = restaurantMenuCache.get(restaurantParamId);
-      if (cached?.version === MENU_CACHE_VERSION) {
-        setRestaurant(prev => ({
-          ...prev,
-          ...cached.restaurant,
-        }));
-        setActiveCategory(cached.activeCategory || null);
-        return;
-      }
+      setRestaurant(prev => ({
+        ...prev,
+        ...cached.restaurant,
+      }));
+      setActiveCategory(cached.activeCategory || 'all');
+      return;
     }
 
     setMenuLoading(true);
@@ -105,169 +173,150 @@ export default function RestaurantDetail() {
 
     try {
       const data = await getRestaurantMenu(restaurantParamId);
-      
-      const restaurantPayload = data?.restaurant || null;
-      const categoriesFromApi = Array.isArray(data?.categories)
-        ? data.categories
-        : [];
-      const products = Array.isArray(data?.products)
-        ? data.products
-        : [];
-      const menuByCategoryIdFromApi =
-        data?.menuByCategoryId && typeof data.menuByCategoryId === 'object'
-          ? data.menuByCategoryId
-          : null;
 
-      const menuMap =
-        data?.menu && typeof data.menu === 'object' && !Array.isArray(data.menu)
-          ? data.menu
-          : null;
       if (!isMountedRef.current) return;
 
-      const getLocalizedText = value => {
-        if (!value) return '';
-        if (typeof value === 'object') {
-          return value.en || value.de || value.ar || '';
-        }
-        return String(value);
-      };
+      console.log('� API Response - has menu object?', !!data?.menu);
+      console.log('🔄 menu type:', typeof data?.menu);
+      
+      let categories = [];
+      let allItems = [];
 
-      // Build categories list and map from API data
-      const categoriesWithIds = categoriesFromApi.map(c => {
-        const id = String(c?._id || c?.id || '').trim();
-        const name = getLocalizedText(c?.name) || 'Unknown';
-        return { id, name };
-      }).filter(c => c.id);
+      // PRIORITY: Use menu object if it exists (NEW API format)
+      // Menu object has category names as keys: {"Burgers": [...], "Starters": [...]}
+      if (data?.menu && typeof data.menu === 'object' && !Array.isArray(data.menu)) {
+        console.log('✅ Using MENU OBJECT format');
+        const menuObj = data.menu;
+        const menuKeys = Object.keys(menuObj);
+        console.log('📋 Menu keys (categories):', menuKeys);
 
-      const mapMenuItem = (item, index, categoryId) => {
-        return {
-          id: item?._id || item?.id || `${categoryId || 'item'}-${index}`,
-          name: getLocalizedText(item?.name) || 'Unknown Product',
-          description: getLocalizedText(item?.description) || '',
-          image: item?.image || 'https://placehold.co/150',
-          bannerimage: item?.bannerImage || 'https://placehold.co/150',
-          price: item?.basePrice ?? item?.price ?? 0,
-          isVeg: item?.isVeg,
-          categoryId: String(categoryId || '').trim(),
-          available: item?.available,
-          variations: item?.variations || [],
-          addOns: item?.addOns || [],
-          isBestSeller: item?.isBestSeller ?? false,
-          subtitle: item?.subtitle,
-          shortDescription: item?.shortDescription,
-        };
-      };
+        // Create categories from menu object keys ONLY
+        categories = menuKeys
+          .filter(key => key && key.trim())
+          .map(categoryName => {
+            const trimmedName = categoryName.trim();
+            const categoryId = trimmedName.toLowerCase().replace(/\s+/g, '_');
+            console.log(`  "${trimmedName}" → ID: "${categoryId}"`);
+            return { id: categoryId, name: trimmedName };
+          });
 
-      // Process menu data
-      let menuByCategory = {};
-      if (menuByCategoryIdFromApi) {
-        Object.entries(menuByCategoryIdFromApi).forEach(([categoryId, categoryData]) => {
-          const id = String(categoryId).trim();
-          const items = Array.isArray(categoryData?.items) ? categoryData.items : [];
-          menuByCategory[id] = items.map((item, index) =>
-            mapMenuItem(item, index, id)
-          );
+        // Extract items from menu object
+        allItems = [];
+        menuKeys.forEach(categoryName => {
+          const items = menuObj[categoryName];
+          if (!Array.isArray(items)) return;
+          
+          const categoryId = categoryName.trim().toLowerCase().replace(/\s+/g, '_');
+          
+          items.forEach(item => {
+            allItems.push({
+              id: item._id,
+              name: item.name?.en || item.name || 'Unknown',
+              description: item.description?.en || item.description || '',
+              image: item.image || 'https://placehold.co/150',
+              price: item.basePrice || 0,
+              isVeg: item.isVeg,
+              categoryId: categoryId,  // ✅ Use menu key ID, NOT API category ID
+              available: item.available !== false,
+              variations: item.variations || [],
+              addOns: item.addOns || [],
+              isBestSeller: item.isBestSeller || false,
+            });
+          });
         });
-      } else if (menuMap) {
-        Object.entries(menuMap).forEach(([categoryName, items]) => {
-          const matchingCategory = categoriesWithIds.find(c => c.name === categoryName);
-          const id = matchingCategory?.id || categoryName;
-          menuByCategory[id] = (Array.isArray(items) ? items : []).map((item, index) =>
-            mapMenuItem(item, index, id)
-          );
-        });
-      } else if (Array.isArray(products)) {
-        products.forEach((item, index) => {
-          const categoryId = String(item?.categoryId || item?.category?._id || '').trim();
-          const resolvedCategoryId = categoryId || 'uncategorized';
-          if (!menuByCategory[resolvedCategoryId]) {
-            menuByCategory[resolvedCategoryId] = [];
-          }
-          menuByCategory[resolvedCategoryId].push(
-            mapMenuItem(item, index, resolvedCategoryId)
-          );
-        });
+
+        console.log(`✅ Parsed ${allItems.length} items from ${categories.length} categories`);
+      } else {
+        // FALLBACK: Use categories and products arrays (LEGACY format)
+        console.log('✅ Using LEGACY format (categories array + products)');
+        const categoriesFromApi = Array.isArray(data?.categories) ? data.categories : [];
+        const products = Array.isArray(data?.products) ? data.products : [];
+
+        categories = categoriesFromApi.map(c => ({
+          id: c._id,
+          name: c?.name?.en || 'Unknown',
+        }));
+
+        allItems = products.map(p => ({
+          id: p._id,
+          name: p.name?.en || 'Unknown Product',
+          description: p.description?.en || '',
+          image: p.image || 'https://placehold.co/150',
+          price: p.basePrice || 0,
+          isVeg: p.isVeg,
+          categoryId: p.categoryId || p.category?._id || p.category,
+          available: p.available !== false,
+          variations: p.variations || [],
+          addOns: p.addOns || [],
+        }));
+
+        console.log(`✅ Parsed ${allItems.length} items from ${categories.length} categories`);
       }
 
-      // Add "All" category at the beginning
+      // Add "All" category
       const allCategoriesWithAll = [
         { id: 'all', name: 'All' },
-        ...categoriesWithIds,
+        ...categories,
       ];
 
-      const primaryCategory = 'all';
-      const primaryCategoryName = 'All Items';
+      console.log('🎯 FINAL CATEGORIES:', allCategoriesWithAll.map(c => ({ id: c.id, name: c.name })));
+      console.log('🎯 SAMPLE ITEM:', allItems[0] ? { name: allItems[0].name, categoryId: allItems[0].categoryId } : 'NO ITEMS');
 
-      // Create menu with "All" category containing all items
-      const allItemsList = Object.values(menuByCategory).flat();
+      // Build menu array grouping by categoryId
+      const menuByCategory = {};
+      categories.forEach(cat => {
+        menuByCategory[cat.id] = [];
+      });
+
+      allItems.forEach(item => {
+        const catId = item.categoryId;
+        if (catId && menuByCategory.hasOwnProperty(catId)) {
+          menuByCategory[catId].push(item);
+        }
+      });
+
       const menu = [
-        {
-          id: 'all',
-          category: 'All Items',
-          items: allItemsList,
-        },
-        ...categoriesWithIds.map(cat => ({
+        { id: 'all', category: 'All Items', items: allItems },
+      ];
+
+      categories.forEach(cat => {
+        menu.push({
           id: cat.id,
           category: cat.name,
           items: menuByCategory[cat.id] || [],
-        })),
-      ];
+        });
+      });
+
+      console.log('📱 FINAL MENU STRUCTURE:', menu.map(m => ({ id: m.id, category: m.category, itemCount: m.items.length })));
 
       setRestaurant(prev => {
-        const sourceRestaurant = restaurantPayload || initialParamRestaurant || {};
-        const name = typeof sourceRestaurant?.name === 'object'
-          ? sourceRestaurant?.name?.en ?? prev.name
-          : sourceRestaurant?.name ?? prev.name;
-        const cuisines = Array.isArray(sourceRestaurant?.cuisine)
-          ? sourceRestaurant.cuisine
-          : (Array.isArray(sourceRestaurant?.cuisines) ? sourceRestaurant.cuisines : prev.cuisines);
+        const name = typeof initialParamRestaurant?.name === 'object'
+          ? initialParamRestaurant?.name?.en ?? prev.name
+          : initialParamRestaurant?.name ?? prev.name;
 
         const nextRestaurant = {
           ...prev,
           id: restaurantParamId,
           name,
-          image: sourceRestaurant?.image ?? prev.image,
-          bannerImage: sourceRestaurant?.bannerImage ?? prev.bannerImage,
-          cuisines,
-          ratingAverage: typeof sourceRestaurant?.rating?.average === 'number'
-            ? sourceRestaurant.rating.average
-            : typeof sourceRestaurant?.rating === 'number'
-              ? sourceRestaurant.rating
-              : prev.ratingAverage,
-          ratingCount: typeof sourceRestaurant?.rating?.count === 'number'
-            ? sourceRestaurant.rating.count
-            : sourceRestaurant?.ratingCount ?? prev.ratingCount,
-          deliveryTime: sourceRestaurant?.deliveryTime ?? prev.deliveryTime,
-          minOrderValue: sourceRestaurant?.minOrderValue ?? prev.minOrderValue,
-          isFreeDelivery: sourceRestaurant?.isFreeDelivery ?? prev.isFreeDelivery,
-          freeDeliveryText: sourceRestaurant?.isFreeDelivery
-            ? 'Free delivery'
-            : prev.freeDeliveryText,
-          minOrder: typeof sourceRestaurant?.minOrderValue === 'number'
-            ? `₹${sourceRestaurant.minOrderValue}`
-            : prev.minOrder,
+          image: initialParamRestaurant?.image ?? prev.image,
+          bannerImage: initialParamRestaurant?.bannerImage ?? prev.bannerImage,
           categories: allCategoriesWithAll,
-          popularItems: allItemsList,
-          menu:
-            menu.length > 0
-              ? menu
-              : [{ id: 'default', category: primaryCategoryName, items: allItemsList }],
+          popularItems: allItems,
+          menu: menu.length > 0 ? menu : [{ id: 'default', category: 'Menu', items: allItems }],
           offers: prev.offers || [],
         };
 
         restaurantMenuCache.set(restaurantParamId, {
-          version: MENU_CACHE_VERSION,
           restaurant: nextRestaurant,
-          activeCategory: primaryCategory,
+          activeCategory: 'all',
         });
-        
+
         return nextRestaurant;
       });
-      
-      // Set active category to 'all' to trigger re-render
-      setActiveCategory(primaryCategory);
+      setActiveCategory('all');
     } catch (err) {
       if (isMountedRef.current) {
+        console.error('❌ Menu fetch error:', err);
         setMenuError(err?.message || 'Failed to load menu.');
       }
     } finally {
@@ -295,14 +344,15 @@ export default function RestaurantDetail() {
 
   const filteredItems = useMemo(() => {
     if (!activeCategory || activeCategory === 'all') {
-      const allMenu = restaurant.menu?.find(m => m.id === 'all');
-      return allMenu?.items || restaurant.popularItems || [];
+      const result = restaurant.popularItems || [];
+      console.log(`📍 Filter ALL: showing ${result.length} items`);
+      return result;
     }
-
-    const activeKey = String(activeCategory).trim();
-    const categoryMenu = restaurant.menu?.find(m => String(m.id || '').trim() === activeKey);
-    return categoryMenu?.items || [];
-  }, [activeCategory, restaurant]);
+    const categoryMenu = restaurant.menu?.find(m => m.id === activeCategory);
+    const result = categoryMenu?.items || [];
+    console.log(`📍 Filter "${activeCategory}": found category? ${!!categoryMenu}, items: ${result.length}`);
+    return result;
+  }, [activeCategory, restaurant.menu, restaurant.popularItems]);
 
   const openDrawer = item => {
     setSelectedItem(item);
@@ -362,11 +412,16 @@ export default function RestaurantDetail() {
     openDrawer(item);
   };
 
+  const handleCategoryPress = (catId) => {
+    console.log(`🎯 Category clicked: "${catId}"`);
+    setActiveCategory(catId);
+  };
+
   const handleToggleFavourite = (item, e) => {
     e?.stopPropagation?.();
     const favId = getFavouriteId(item);
-    
-    toggleFavourite?.({
+    const res = toggleFavourite?.({
+      favouriteId: favId,
       id: favId,
       menuItemId: item?.id,
       name: item?.name,
@@ -376,8 +431,13 @@ export default function RestaurantDetail() {
       basePrice: toNumber(item?.price, 0),
       restaurantId,
       restaurantName,
-      type: 'product',
+      restaurant,
     });
+
+    if (res?.added) {
+      // As requested: when user adds a favourite, open favourites page.
+      navigation.navigate('Favourite');
+    }
   };
 
   return (
@@ -407,18 +467,17 @@ export default function RestaurantDetail() {
               <Pressable
                 style={styles.headerIcon}
                 onPress={() => toggleFavourite({
+                  favouriteId: restaurantId,
                   id: restaurantId,
-                  restaurantId: restaurantId,
                   name: restaurantName,
-                  image: restaurant.bannerImage || restaurant.image,
-                  restaurantName: restaurantName,
-                  type: 'restaurant',
+                  image: restaurant.bannerImage,
+                  restaurant,
                 })}
               >
                 <Heart
                   size={18}
-                  color={isFavourite?.(restaurantId, 'restaurant') ? '#FF3D3D' : '#000'}
-                  fill={isFavourite?.(restaurantId, 'restaurant') ? '#FF3D3D' : 'transparent'}
+                  color={isFavourite?.(restaurantId) ? '#FF3D3D' : '#000'}
+                  fill={isFavourite?.(restaurantId) ? '#FF3D3D' : 'transparent'}
                 />
               </Pressable>
 
@@ -429,23 +488,13 @@ export default function RestaurantDetail() {
           </View>
 
           {/* Rating pill */}
-          {restaurant.ratingCount > 0 ? (
-            <View style={styles.ratingBadge}>
-              <Star size={14} color="#FFB800" fill="#FFB800" />
-              <Text style={styles.ratingText}>
-                {typeof restaurant.ratingAverage === 'number' 
-                  ? restaurant.ratingAverage.toFixed(1) 
-                  : '0.0'}
-              </Text>
-              <Text style={styles.ratingSubText}>
-                ({restaurant.ratingCount})
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.ratingBadge}>
-              <Text style={styles.ratingText}>New</Text>
-            </View>
-          )}
+          <View style={styles.ratingBadge}>
+            <Star size={14} color="#FFB800" fill="#FFB800" />
+            <Text style={styles.ratingText}>{restaurant.ratingAverage}</Text>
+            <Text style={styles.ratingSubText}>
+              ({restaurant.ratingCount})
+            </Text>
+          </View>
         </View>
 
         {/* ===== INFO ===== */}
@@ -493,7 +542,7 @@ export default function RestaurantDetail() {
           style={styles.catRow}
         >
           {(restaurant.categories || []).map(cat => (
-            <TouchableOpacity key={cat.id} onPress={() => setActiveCategory(cat.id)}>
+            <TouchableOpacity key={cat.id} onPress={() => handleCategoryPress(cat.id)}>
               <View
                 style={[
                   styles.catPill,
@@ -541,10 +590,12 @@ export default function RestaurantDetail() {
             (Array.isArray(filteredItems) ? filteredItems : []).map(
               (item, index, arr) => {
                 const qty = getSimpleQty(item);
-                const favOn = isFavourite?.(item?.id, 'product');
+                const favId = getFavouriteId(item);
+                const favOn = isFavourite?.(favId);
                 const itemSubtitle =
                   item?.subtitle ||
                   item?.shortDescription ||
+                  item?.description ||
                   '';
                 const itemDesc = item?.detail || item?.description || '';
                 return (
@@ -731,7 +782,7 @@ const styles = StyleSheet.create({
 
   cover: {
     width: '100%',
-      height: hp(27),
+    height: 260,
   },
 
   headerTopShade: {
@@ -739,7 +790,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-      height: hp(15),
+    height: 140,
   },
 
   headerBottomShade: {
@@ -747,17 +798,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-      height: hp(15),
+    height: 140,
   },
 
   back: {
     position: 'absolute',
-      top: scale(8),
-      left: SPACING.lg,
+    top: 8,
+    left: 16,
     backgroundColor: '#FFF',
-      width: scale(36),
-      height: scale(36),
-      borderRadius: scale(18),
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -767,17 +818,17 @@ const styles = StyleSheet.create({
 
   topIcons: {
     position: 'absolute',
-      top: scale(8),
-      right: SPACING.lg,
+    top: 8,
+    right: 16,
     flexDirection: 'row',
-      gap: SPACING.md,
+    gap: 12,
   },
 
   iconCircle: {
-      width: scale(36),
-      height: scale(36),
+    width: 36,
+    height: 36,
     backgroundColor: '#FFF',
-      borderRadius: scale(18),
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -787,9 +838,9 @@ const styles = StyleSheet.create({
 
   headerBadgeRow: {
     position: 'absolute',
-      left: SPACING.lg,
-      right: SPACING.lg,
-      bottom: scale(10),
+    left: 16,
+    right: 16,
+    bottom: 10,
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
@@ -798,10 +849,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: scale(6),
-      borderRadius: scale(16),
-      gap: SPACING.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -813,118 +864,118 @@ const styles = StyleSheet.create({
   ratingPillText: {
     color: '#111',
     fontWeight: '800',
-      fontSize: FONT_SIZES.sm,
+    fontSize: 13,
   },
 
   ratingPillSub: {
     color: '#6E6E6E',
     fontWeight: '700',
-      fontSize: FONT_SIZES.xs,
+    fontSize: 12,
   },
 
   infoBox: {
-      padding: SPACING.lg,
-      marginTop: scale(-28),
+    padding: 16,
+    marginTop: -28,
     backgroundColor: '#FFF',
-      borderTopLeftRadius: scale(28),
-      borderTopRightRadius: scale(28),
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
 
   topRow: {
     flexDirection: 'row',
-      gap: SPACING.md,
+    gap: 12,
   },
 
   resThumb: {
-      width: scale(86),
-      height: scale(96),
-      borderRadius: scale(16),
+    width: 86,
+    height: 96,
+    borderRadius: 16,
     borderWidth: 3,
     borderColor: '#FFFFFF',
-      top: scale(-45),
+    top: -50,
   },
 
   name: {
-      fontSize: FONT_SIZES.xl,
+    fontSize: 20,
     fontWeight: '700',
-      marginTop: SPACING.xs,
+    marginTop: 4,
   },
 
   meta: {
     color: '#7A7A7A',
-      marginTop: SPACING.xs,
-      fontSize: FONT_SIZES.xs,
+    marginTop: 4,
+    fontSize: 12,
   },
 
   deliveryRow: {
-      marginTop: SPACING.xs,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
   deliveryText: {
-      fontSize: FONT_SIZES.sm,
+    fontSize: 14,
     fontWeight: '700',
     color: '#111',
   },
 
   freeDeliveryText: {
-      marginTop: SPACING.xs,
-      fontSize: FONT_SIZES.sm,
+    marginTop: 4,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   minOrderText: {
-      marginTop: SPACING.xs,
-      fontSize: FONT_SIZES.xs,
+    marginTop: 4,
+    fontSize: 12,
     color: '#7A7A7A',
     fontWeight: '600',
   },
 
   changeBtn: {
-     marginLeft: SPACING.md,
-     paddingHorizontal: SPACING.md,
-     paddingVertical: scale(6),
-     borderRadius: scale(16),
+    marginLeft: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E6E6E6',
     backgroundColor: '#FFFFFF',
   },
 
   changeText: {
-     fontSize: FONT_SIZES.xs,
+    fontSize: 12,
     fontWeight: '700',
     color: '#555',
   },
 
   searchBox: {
-     margin: SPACING.lg,
+    margin: 16,
     backgroundColor: '#F2F4F7',
-     borderRadius: scale(14),
-     paddingVertical: SPACING.md,
-     paddingHorizontal: SPACING.md,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-     gap: SPACING.sm,
+    gap: 10,
   },
 
   searchPlaceholder: {
     color: '#9AA0A6',
-     fontSize: FONT_SIZES.sm,
+    fontSize: 13,
     fontWeight: '600',
   },
 
   catRow: {
-     paddingLeft: SPACING.lg,
-     marginBottom: SPACING.sm,
+    paddingLeft: 16,
+    marginBottom: 10,
   },
 
   catPill: {
-     marginRight: SPACING.sm,
-     paddingHorizontal: SPACING.md,
-     paddingVertical: scale(9),
-     borderRadius: scale(18),
+    marginRight: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
     backgroundColor: '#F2F4F7',
   },
 
@@ -935,7 +986,7 @@ const styles = StyleSheet.create({
   catText: {
     color: '#6F6F6F',
     fontWeight: '800',
-     fontSize: FONT_SIZES.xs,
+    fontSize: 12,
   },
 
   catTextActive: {
@@ -943,59 +994,59 @@ const styles = StyleSheet.create({
   },
 
   itemsHeader: {
-     marginHorizontal: SPACING.md,
-     marginTop: SPACING.sm,
-     marginBottom: SPACING.sm,
+    marginHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 6,
   },
 
   itemsTitle: {
-     fontSize: FONT_SIZES.sm,
+    fontSize: 14,
     fontWeight: '800',
     color: '#111',
   },
 
   itemsSubTitle: {
-     marginTop: scale(2),
-     fontSize: FONT_SIZES.xs,
+    marginTop: 2,
+    fontSize: 11,
     color: '#7A7A7A',
     fontWeight: '600',
   },
 
   itemsCardWrap: {
-     marginHorizontal: SPACING.lg,
-     borderRadius: scale(12),
+    marginHorizontal: 16,
+    borderRadius: 12,
     backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#E5E5E5',
-     paddingBottom: SPACING.sm,
+    paddingBottom: 8,
   },
 
   itemRow: {
     flexDirection: 'row',
-     paddingHorizontal: SPACING.md,
-     paddingVertical: SPACING.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: 'center',
   },
 
   itemDivider: {
     height: 1,
     backgroundColor: '#EDEDED',
-     marginHorizontal: SPACING.md,
-     marginVertical: SPACING.sm,
+    marginHorizontal: 12,
+    marginVertical: 6,
   },
 
   itemImgWrap: {
     position: 'relative',
-     marginRight: SPACING.sm,
+    marginRight: 10,
   },
 
   itemFavBtn: {
     position: 'absolute',
-     top: scale(-4),
-     left: scale(-4),
-     width: scale(24),
-     height: scale(24),
-     borderRadius: scale(12),
+    top: -4,
+    left: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1004,9 +1055,9 @@ const styles = StyleSheet.create({
   },
 
   itemImg: {
-     width: scale(64),
-     height: scale(64),
-     borderRadius: scale(12),
+    width: 64,
+    height: 64,
+    borderRadius: 12,
   },
 
   itemContent: {
@@ -1017,55 +1068,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-      gap: SPACING.sm,
+    gap: 8,
   },
 
   itemName: {
-      fontSize: FONT_SIZES.sm,
+    fontSize: 14,
     fontWeight: '700',
     color: '#111',
     flex: 1,
   },
 
   itemPrice: {
-      fontSize: FONT_SIZES.sm,
+    fontSize: 13,
     fontWeight: '800',
     color: '#111',
-      marginBottom: scale(2),
+    marginBottom: 2,
   },
 
   itemSubtitle: {
-      marginTop: scale(1),
-      fontSize: FONT_SIZES.xs,
+    marginTop: 1,
+    fontSize: 12,
     color: '#222',
     fontWeight: '600',
   },
 
   desc: {
-      fontSize: FONT_SIZES.xs,
+    fontSize: 11,
     color: '#777',
-      marginTop: scale(2),
+    marginTop: 2,
   },
 
   bestSeller: {
     color: '#D84C4C',
-     fontSize: FONT_SIZES.xs,
-     marginTop: SPACING.xs,
+    fontSize: 10,
+    marginTop: 4,
     fontWeight: '700',
     backgroundColor: '#FFE8E8',
-     paddingHorizontal: SPACING.sm,
-     paddingVertical: scale(3),
-     borderRadius: scale(10),
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     alignSelf: 'flex-start',
   },
 
   addPlusBtn: {
     position: 'absolute',
-     right: SPACING.md,
-     top: SPACING.lg,
-     width: scale(24),
-     height: scale(24),
-     borderRadius: scale(5),
+    right: 12,
+    top: 18,
+    width: 24,
+    height: 24,
+    borderRadius: 5,
     backgroundColor: '#E6E6E6',
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -1075,11 +1126,11 @@ const styles = StyleSheet.create({
   },
 
   addedRow: {
-     marginTop: SPACING.sm,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-     paddingRight: scale(40),
+    paddingRight: 40,
   },
 
   stepper: {
@@ -1087,38 +1138,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E8E8',
-     borderRadius: scale(12),
-     paddingHorizontal: SPACING.sm,
-     height: scale(24),
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    height: 24,
     backgroundColor: '#FFF',
   },
 
   stepBtn: {
-     width: scale(22),
-     height: scale(22),
-     borderRadius: scale(11),
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   stepQty: {
-     minWidth: scale(16),
+    minWidth: 16,
     textAlign: 'center',
     fontWeight: '900',
     color: '#111',
-     fontSize: FONT_SIZES.xs,
-     marginHorizontal: scale(2),
+    fontSize: 11,
+    marginHorizontal: 2,
   },
 
   cartBar: {
     position: 'absolute',
-     left: SPACING.md,
-     right: SPACING.md,
-     bottom: SPACING.md,
+    left: 14,
+    right: 14,
+    bottom: 14,
     backgroundColor: '#111',
-     borderRadius: scale(16),
-     paddingVertical: SPACING.md,
-     paddingHorizontal: SPACING.md,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -1126,47 +1177,47 @@ const styles = StyleSheet.create({
   cartBarTitle: {
     color: '#FFF',
     fontWeight: '900',
-     fontSize: FONT_SIZES.sm,
+    fontSize: 13,
   },
 
   cartBarSub: {
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '700',
-     fontSize: FONT_SIZES.xs,
-     marginTop: scale(2),
+    fontSize: 11,
+    marginTop: 2,
   },
 
   cartBtn: {
     backgroundColor: '#FF3D3D',
-     paddingVertical: SPACING.sm,
-     paddingHorizontal: SPACING.md,
-     borderRadius: scale(12),
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
   },
 
   cartBtnText: {
     color: '#FFF',
     fontWeight: '900',
-     fontSize: FONT_SIZES.xs,
+    fontSize: 12,
   },
 
   reviewTitle: {
-     margin: SPACING.lg,
-     fontSize: FONT_SIZES.lg,
+    margin: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
 
   reviewList: {
-     paddingLeft: SPACING.lg,
-     paddingRight: SPACING.sm,
-     paddingBottom: SPACING.sm,
+    paddingLeft: 16,
+    paddingRight: 6,
+    paddingBottom: 8,
   },
 
   reviewCard: {
-     width: wp(80),
+    width: 300,
     backgroundColor: '#FFFDF5',
-     marginRight: SPACING.md,
-     padding: SPACING.md,
-     borderRadius: scale(16),
+    marginRight: 12,
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#F3A15C',
   },
@@ -1174,31 +1225,31 @@ const styles = StyleSheet.create({
   reviewTop: {
     flexDirection: 'row',
     alignItems: 'center',
-     gap: SPACING.sm,
+    gap: 8,
   },
 
   reviewStars: {
     flexDirection: 'row',
     alignItems: 'center',
-     gap: scale(2),
+    gap: 2,
   },
 
   reviewUser: {
     fontWeight: '700',
-     fontSize: FONT_SIZES.sm,
+    fontSize: 13,
     color: '#111',
   },
 
   reviewText: {
-     marginTop: SPACING.md,
+    marginTop: 8,
     color: '#222',
-     fontSize: FONT_SIZES.xs,
-     lineHeight: scale(16),
+    fontSize: 12,
+    lineHeight: 16,
   },
 
   reviewTime: {
     marginLeft: 'auto',
-     fontSize: FONT_SIZES.xs,
+    fontSize: 12,
     color: '#8E8E93',
     fontWeight: '600',
   },
@@ -1208,16 +1259,16 @@ const styles = StyleSheet.create({
 
   headerImage: {
     width: '100%',
-      height: hp(29),
+    height: 280,
   },
 
   headerIconLeft: {
     position: 'absolute',
-      top: scale(24),
-      left: SPACING.lg,
-      width: scale(40),
-      height: scale(40),
-      borderRadius: scale(20),
+    top: 24,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1226,16 +1277,16 @@ const styles = StyleSheet.create({
 
   headerIconRightGroup: {
     position: 'absolute',
-      top: scale(24),
-      right: SPACING.lg,
+    top: 24,
+    right: 16,
     flexDirection: 'row',
-      gap: SPACING.md,
+    gap: 12,
   },
 
   headerIcon: {
-      width: scale(40),
-      height: scale(40),
-      borderRadius: scale(20),
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1244,75 +1295,70 @@ const styles = StyleSheet.create({
 
   ratingBadge: {
     position: 'absolute',
-      bottom: scale(35),
-      right: SPACING.lg,
+    bottom: 35,
+    right: 16,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: scale(7),
-      borderRadius: scale(18),
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
     elevation: 4,
   },
 
   ratingText: {
-      marginLeft: SPACING.sm,
+    marginLeft: 6,
     fontWeight: '800',
-      fontSize: FONT_SIZES.sm,
+    fontSize: 13,
     color: '#000',
   },
 
   ratingSubText: {
-      marginLeft: SPACING.xs,
-      fontSize: FONT_SIZES.xs,
+    marginLeft: 4,
+    fontSize: 12,
     fontWeight: '700',
     color: '#666',
   },
 
   loadingText: {
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.md,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     color: '#7A7A7A',
-      fontSize: FONT_SIZES.xs,
+    fontSize: 12,
     fontWeight: '700',
   },
 
   errorWrap: {
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.md,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
   },
 
   errorText: {
     color: '#D84C4C',
-      fontSize: FONT_SIZES.xs,
+    fontSize: 12,
     fontWeight: '700',
-      marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
 
   retryBtn: {
     alignSelf: 'flex-start',
     backgroundColor: '#FF3D3D',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: scale(6),
-      borderRadius: scale(12),
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
 
   retryText: {
     color: '#FFF',
-      fontSize: FONT_SIZES.xs,
+    fontSize: 12,
     fontWeight: '800',
   },
 
   emptyText: {
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.md,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     color: '#7A7A7A',
-      fontSize: FONT_SIZES.xs,
+    fontSize: 12,
     fontWeight: '700',
   },
 });
-
-
-
-
-

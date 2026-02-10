@@ -8,7 +8,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,8 +17,9 @@ import { registerInitiate, checkVerificationStatus } from '../../services/authSe
 import { savePendingSignup } from '../../services/storage';
 import MaterialTextInput from '../../components/input/MaterialTextInput';
 import { useAuth } from '../../context/AuthContext';
-
-const { width, height } = Dimensions.get('window');
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
 
 export default function CreateAccountScreen() {
   const navigation = useNavigation();
@@ -368,10 +368,10 @@ const styles = StyleSheet.create({
 
   header: {
     width: '100%',
-    height: height * 0.66,
+    height: hp(66),
     overflow: 'hidden',
-    borderBottomLeftRadius: 34,
-    borderBottomRightRadius: 34,
+    borderBottomLeftRadius: scale(34),
+    borderBottomRightRadius: scale(34),
     position: 'absolute',
   },
 
@@ -393,56 +393,56 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 70,
+    height: hp(8.75),
     backgroundColor: 'rgba(255,255,255,0.72)',
   },
 
   logo: {
     alignSelf: 'center',
-    width: 180,
-    height: 90,
-    marginTop: 50,
+    width: wp(50),
+    height: hp(11.25),
+    marginTop: hp(6.25),
   },
 
   /* CONTENT */
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 90,
-    paddingBottom: 24,
+    paddingHorizontal: wp(6.67),
+    paddingTop: hp(11.25),
+    paddingBottom: hp(3),
     zIndex: 1,
   },
 
   title: {
-    fontSize: 26,
+    fontSize: FONT.xxl,
     fontWeight: '700',
     textAlign: 'center',
     color: '#111',
   },
 
   subtitle: {
-    fontSize: 14,
+    fontSize: FONT.sm,
     color: '#777',
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 22,
+    marginTop: hp(1),
+    marginBottom: hp(2.75),
   },
 
   label: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#555',
-    marginBottom: 6,
+    marginBottom: hp(0.75),
   },
 
   inputBox: {
     borderWidth: 1,
     borderColor: '#D9E0F2',
     backgroundColor: '#F2F2F2',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 40,
+    borderRadius: scale(12),
+    paddingHorizontal: wp(3.89),
+    height: hp(5),
     alignItems: 'center',
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: hp(1.75),
   },
 
   inputBoxFocused: {
@@ -452,27 +452,27 @@ const styles = StyleSheet.create({
 
   input: {
     flex: 1,
-    fontSize: 14,
+    fontSize: FONT.sm,
     color: '#000',
   },
 
   eyeBtn: {
-    paddingLeft: 10,
-    paddingVertical: 6,
+    paddingLeft: wp(2.78),
+    paddingVertical: hp(0.75),
   },
 
   eyeIcon: {
-    width: 18,
-    height: 18,
+    width: wp(5),
+    height: hp(2.25),
     tintColor: '#9AA0A6',
   },
 
   btn: {
-    backgroundColor: '#E11D2E',
-    borderRadius: 16,
-    paddingVertical: 18,
+    backgroundColor: '#ed1c24',
+    borderRadius: scale(16),
+    paddingVertical: hp(2.25),
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: hp(1.25),
   },
 
   btnDisabled: {
@@ -481,40 +481,40 @@ const styles = StyleSheet.create({
 
   btnText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: FONT.md,
     fontWeight: '600',
   },
 
   footerBlock: {
-    marginTop: 20,
+    marginTop: hp(2.5),
   },
 
   terms: {
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: FONT.xs,
     color: '#777',
-    marginBottom: 16,
+    marginBottom: hp(2),
   },
 
   link: {
-    color: '#F41F1F',
+    color: '#ed1c24',
     fontWeight: '600',
   },
 
   footer: {
     textAlign: 'center',
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#666',
   },
 
   register: {
-    color: '#E11D2E',
+    color: '#ed1c24',
     fontWeight: '600',
   },
   errorText: {
-    fontSize: 12,
-    color: '#E11D2E',
-    marginTop: -6,
-    marginBottom: 10,
+    fontSize: FONT.xs,
+    color: '#ed1c24',
+    marginTop: hp(-0.75),
+    marginBottom: hp(1.25),
   },
 });

@@ -12,7 +12,7 @@ export const toastConfig = {
   topSuccess: ({ text1 = '', text2 = '', props = {} } = {}) => (
     <View style={styles.container}>
       {props?.showLoader !== false && (
-        <ActivityIndicator size="small" color="#E11D2E" style={styles.loader} />
+        <ActivityIndicator size="small" color="#ed1c24" style={styles.loader} />
       )}
       <View style={styles.textWrap}>
         {!!text1 && <Text style={styles.title}>{text1}</Text>}

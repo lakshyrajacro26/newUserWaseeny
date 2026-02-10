@@ -2,21 +2,21 @@ import apiClient from '../config/apiClient';
 import { AUTH_ROUTES } from '../config/routes';
 import { saveAuth } from './storage';
 
-export const login = async ({ email, password }) => {
+export const loginApi = async ({ email, password }) => {
   const payload = {
     email: (email ?? '').trim(),
     password,
   };
 
   const response = await apiClient.post(AUTH_ROUTES.login, payload);
-  const data = response?.data ?? {};
+  const data = response;
 
-  const token = data?.token || data?.accessToken || data?.data?.token;
-  const user = data?.user || data?.data?.user;
+  // const token = data?.token || data?.accessToken || data?.data?.token;
+  // const user = data?.user || data?.data?.user;
 
-  if (token || user) {
-    await saveAuth({ token, user });
-  }
+  // if (token || user) {
+  //   await saveAuth({ token, user });
+  // }
 
   return data;
 };

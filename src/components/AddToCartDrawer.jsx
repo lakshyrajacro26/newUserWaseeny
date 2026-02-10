@@ -12,9 +12,9 @@ import {
   Text,
   TextInput,
   View,
-  Alert,
 } from 'react-native';
 
+import Toast from 'react-native-toast-message';
 import { CartContext } from '../context/CartContext';
 import { buildCartLineId } from '../services/cartPricing';
 import { debounceAsync } from '../utils/debounce';
@@ -334,11 +334,21 @@ export default function AddToCartDrawer({
           requestClose();
         } else {
           console.error('❌ AddToCartDrawer: Failed to add item');
-          Alert.alert('Error', 'Failed to add item to cart');
+          Toast.show({
+            type: 'topError',
+            text1: 'Error',
+            text2: 'Failed to add item to cart',
+            position: 'top',
+          });
         }
       } catch (error) {
         console.error('❌ AddToCartDrawer: Error adding to cart:', error?.message);
-        Alert.alert('Error', error?.message || 'Failed to add item to cart');
+        Toast.show({
+          type: 'topError',
+          text1: 'Error',
+          text2: error?.message || 'Failed to add item to cart',
+          position: 'top',
+        });
       } finally {
         setIsSubmitting(false);
       }

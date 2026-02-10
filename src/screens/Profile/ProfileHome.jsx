@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,16 +17,26 @@ import DeleteAccountPopUp from './DeleteAccountPopUp';
 import LoadingModal from '../../components/LoadingModal';
 import apiClient from '../../config/apiClient';
 import { USER_ROUTES } from '../../config/routes';
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES } from '../../theme/typography';
+import { SPACING } from '../../theme/spacing';
 
 const { width } = Dimensions.get('window');
 
-export default function ProfileHome() {
+// Cache timeout (30 seconds)
+const CACHE_TIMEOUT = 30000;
+
+function ProfileHome() {
   const navigation = useNavigation();
   const { logout } = useAuth();
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [userData, setUserData] = useState(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  
+  // Cache ref to track last fetch time
+  const lastFetchTimeRef = useRef(null);
 
   const rootNavigation = useMemo(() => {
     let current = navigation;
@@ -48,13 +58,22 @@ export default function ProfileHome() {
    * 5. This triggers AuthContext.isAuthenticated = false
    * 6. AppNavigator conditionally removes MainTabs and shows LoginScreen
    */
-  // Fetch user profile
-  const fetchUserProfile = async () => {
+  
+  // Fetch user profile - with caching to prevent repeated API calls
+  const fetchUserProfile = async (bypassCache = false) => {
+    const now = Date.now();
+    
+    // Check if data is already cached and fresh
+    if (!bypassCache && lastFetchTimeRef.current && (now - lastFetchTimeRef.current) < CACHE_TIMEOUT) {
+      return; // Data is fresh, skip API call
+    }
+    
     try {
       setIsLoadingProfile(true);
       const response = await apiClient.get(USER_ROUTES.profile);
       const user = response?.data?.user || response?.data;
       setUserData(user);
+      lastFetchTimeRef.current = now; // Update cache timestamp
     } catch (error) {
       console.error('Error fetching user profile:', error);
     } finally {
@@ -68,9 +87,10 @@ export default function ProfileHome() {
   }, []);
 
   // Refetch when screen comes into focus (after editing profile)
+  // But use cache to prevent bar-bar API calls
   useFocusEffect(
     React.useCallback(() => {
-      fetchUserProfile();
+      fetchUserProfile(); // bypassCache = false (default), so uses cache
     }, [])
   );
 
@@ -178,7 +198,7 @@ export default function ProfileHome() {
             />
             <MenuItem
               title="Delivery Address"
-              onPress={() => navigation.navigate('AddAddressScreen')}
+              onPress={() => navigation.navigate('AddressesScreen')}
             />
             <MenuItem
               title="Food Preference"
@@ -264,8 +284,9 @@ export default function ProfileHome() {
   );
 }
 
-/* ---------- Menu Item Component ---------- */
-const MenuItem = ({ title, onPress, isLast }) => (
+export default React.memo(ProfileHome);
+
+const MenuItem = React.memo(({ title, onPress, isLast }) => (
   <TouchableOpacity
     activeOpacity={0.7}
     style={[styles.menuItem, isLast && styles.menuItemLast]}
@@ -274,7 +295,7 @@ const MenuItem = ({ title, onPress, isLast }) => (
     <Text style={styles.menuItemText}>{title}</Text>
     <Text style={styles.chevron}>›</Text>
   </TouchableOpacity>
-);
+));
 
 /* ---------- Styles ---------- */
 const styles = StyleSheet.create({
@@ -284,53 +305,53 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: SPACING.lg,
   },
 
   /* Header */
   header: {
     backgroundColor: '#E41C26',
-    paddingTop: 60,
-    paddingBottom: 24,
-    height: 160,
+    paddingTop: scale(60),
+    paddingBottom: SPACING.lg,
+    height: hp(20),
     alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: scale(24),
+    borderBottomRightRadius: scale(24),
   },
 
   avatarWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: scale(80),
+    height: scale(80),
+    borderRadius: scale(40),
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
 
   avatar: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
+    width: scale(74),
+    height: scale(74),
+    borderRadius: scale(37),
   },
 
   name: {
-    fontSize: 18,
+    fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: '#000',
   },
 
   phone: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#000',
-    marginTop: 4,
+    marginTop: scale(4),
     opacity: 0.9,
   },
 
   ImageContainer: {
-    marginTop: -58,
+    marginTop: scale(-58),
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center'
@@ -338,17 +359,17 @@ const styles = StyleSheet.create({
   /* Quick Actions */
   quickActionsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
     zIndex: 10,
   },
 
   quickActionCard: {
     flex: 1,
-    marginTop: 20,
+    marginTop: scale(20),
     backgroundColor: '#FDF8F8',
-    borderRadius: 12,
-    paddingVertical: 8,
+    borderRadius: scale(12),
+    paddingVertical: scale(8),
     alignItems: 'center',
     justifyContent:'center',
     borderWidth: 1,
@@ -357,9 +378,9 @@ const styles = StyleSheet.create({
   },
 
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     backgroundColor: '#FFF5F5',
     justifyContent: 'center',
     alignItems: 'center',
@@ -367,7 +388,7 @@ const styles = StyleSheet.create({
   },
 
   quickActionText: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#333333',
     fontWeight: '600',
   },
@@ -378,10 +399,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#FDF8F8',
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.sm,
+    padding: SPACING.lg,
+    borderRadius: scale(12),
     borderWidth: 1,
     borderColor: '#00000024'
   },
@@ -389,38 +410,38 @@ const styles = StyleSheet.create({
   walletLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.sm,
   },
 
   walletText: {
-    fontSize: 15,
+    fontSize: FONT_SIZES.sm,
     color: '#333333',
     fontWeight: '600',
   },
 
   walletAmount: {
-    fontSize: 16,
+    fontSize: FONT_SIZES.sm,
     color: '#E41C26',
     fontWeight: '700',
   },
 
   /* Sections */
   section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
   },
 
   sectionTitle: {
-    fontSize: 13,
+    fontSize: FONT_SIZES.xs,
     color: '#999999',
     fontWeight: '600',
-    marginBottom: 8,
-    marginLeft: 4,
+    marginBottom: SPACING.xs,
+    marginLeft: scale(4),
   },
 
   sectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: scale(12),
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#00000024'
@@ -431,8 +452,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: '#F5F5F5',
   },
@@ -442,13 +463,13 @@ const styles = StyleSheet.create({
   },
 
   menuItemText: {
-    fontSize: 15,
+    fontSize: FONT_SIZES.sm,
     color: '#333333',
     fontWeight: '500',
   },
 
   chevron: {
-    fontSize: 20,
+    fontSize: FONT_SIZES.lg,
     color: '#CCCCCC',
     fontWeight: '300',
   },

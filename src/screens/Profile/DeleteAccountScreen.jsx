@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ReasonSheetModal from '../../components/ReasonSheetModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useHideTabBar from '../../utils/hooks/useHideTabBar';
+import { deleteAccount } from '../../services/userService';
 
 const checklist = [
   {
@@ -46,6 +49,7 @@ export default function DeleteAccountScreen() {
     useHideTabBar(navigation);
   const [reasonVisible, setReasonVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const reasons = useMemo(
     () => [
@@ -61,7 +65,26 @@ export default function DeleteAccountScreen() {
     ],
     [],
   );
+  const handleDeleteAccount = async () => {
+    if (!selectedReason) return;
 
+    setIsDeleting(true);
+    try {
+      await deleteAccount(selectedReason);
+      // Navigate to completion screen after successful deletion
+      navigation.navigate('DeletionComplete');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: error?.response?.data?.message || 'Failed to delete account. Please try again.',
+        position: 'top',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const renderItem = ({ item }) => (
     <View style={styles.pointRow}>
       <Text style={styles.bullet}>•</Text>
@@ -134,19 +157,23 @@ export default function DeleteAccountScreen() {
         <TouchableOpacity
           style={[
             styles.deleteBtn,
-            !selectedReason && styles.deleteBtnDisabled,
+            (!selectedReason || isDeleting) && styles.deleteBtnDisabled,
           ]}
-          disabled={!selectedReason}
-          onPress={() => navigation.navigate('DeletionComplete')}
+          disabled={!selectedReason || isDeleting}
+          onPress={handleDeleteAccount}
         >
-          <Text
-            style={[
-              styles.deleteText,
-              !selectedReason && styles.deleteTextDisabled,
-            ]}
-          >
-            Delete Account
-          </Text>
+          {isDeleting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text
+              style={[
+                styles.deleteText,
+                !selectedReason && styles.deleteTextDisabled,
+              ]}
+            >
+              Delete Account
+            </Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
 

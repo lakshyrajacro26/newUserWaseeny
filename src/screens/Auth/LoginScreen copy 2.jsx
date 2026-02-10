@@ -69,64 +69,116 @@ export default function LoginScreen() {
     setEmail(value);
   };
 
+  const handleLogin = async () => {
+    if (isLoading) {
+      return;
+    }
 
-  const validate = () => {
-    let valid = true;
-    // Email validation
-    if (!email) {
+
+    const emailValue = email.trim();
+    const passwordValue = password.trim();
+
+
+    
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[6-9]\d{9}$/;
+
+    let hasError = false;
+
+    if (!emailValue) {
       setEmailError('Email is required');
-      valid = false;
-    } else if (!/^\S+@\S+\.\S+$/.test(email)) {
-      setEmailError('Enter a valid email');
-      valid = false;
+      hasError = true;
+    } else if (!emailRegex.test(emailValue)) {
+      setEmailError('Enter a valid email address');
+      hasError = true;
     } else {
       setEmailError('');
     }
-    // Password validation
-    if (!password) {
+
+    if (!passwordValue) {
       setPasswordError('Password is required');
-      valid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      valid = false;
+      hasError = true;
+    } else if (
+      passwordValue.length < 6 ||
+      !/[A-Z]/.test(passwordValue) ||
+      !/\d/.test(passwordValue)
+    ) {
+      setPasswordError(
+        'Password must be 6+ chars with 1 uppercase letter and 1 number',
+      );
+      hasError = true;
     } else {
       setPasswordError('');
     }
-    return valid;
-  };
-  const handleLogin = async () => {
-    if (!validate()) return;
 
-    setIsLoading(true);
+    if (hasError) {
+      return;
+    }
 
     try {
-      const result = await login(email, password);
-     console.log("Login result", result)
-      if (result.success) {
-        Toast.show({
-          type: 'topSuccess',
-          text1: 'Login Successful',
-          text2: 'Welcome back!',
-        });
+      setIsLoading(true);
+      const data = await login({ email: emailValue, password: passwordValue });
+console.log('Login Response:', data)      
 
-        navigation.replace('MainTabs');
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Login Failed',
-          text2: result.message,
-        });
-      }
+    
+
+      Toast.show({
+        type: 'topSuccess',
+        text1: 'Login Successful',
+        text2: 'Welcome back 👋',
+        position: 'top',
+        autoHide: true,
+        visibilityTime: 2000,
+        props: { showLoader: true },
+        onHide: () => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
+      });
     } catch (error) {
+      const errMsg = error?.response?.data?.message || error?.message || '';
+
+      // Detect unverified account based on common phrases from backend
+      if (/verify|not verify|not verified|unverified|complete verification/i.test(errMsg)) {
+        try {
+          const status = await checkVerificationStatus({ email: emailValue });
+          const isVerified = status?.verified ?? status?.isVerified ?? false;
+          const returnedMobile = status?.mobile || '';
+
+          if (!isVerified) {
+            Toast.show({
+              type: 'info',
+              text1: 'Account Not Verified',
+              text2: 'Please complete registration via OTP',
+              position: 'top',
+              autoHide: true,
+              visibilityTime: 2500,
+              onHide: () =>
+                navigation.replace('Verify', {
+                  flow: 'signup',
+                  email: emailValue,
+                  mobile: returnedMobile,
+                  autoResend: true,
+                }),
+            });
+            return;
+          }
+        } catch (innerErr) {
+          // ignore and show generic error below
+        }
+      }
+
       Toast.show({
         type: 'error',
-        text1: 'Something went wrong',
-        text2: 'Please try again',
+        text1: 'Login Failed',
+        text2: errMsg || 'Unable to login',
+        position: 'top',
+        autoHide: true,
+        visibilityTime: 3000,
       });
     } finally {
       setIsLoading(false);
     }
   };
+
   return (
     <View style={styles.safe}>
       <KeyboardAvoidingView

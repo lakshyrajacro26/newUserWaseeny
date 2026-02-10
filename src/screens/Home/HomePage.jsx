@@ -8,14 +8,14 @@ import {
   ImageBackground,
   FlatList,
   TouchableOpacity,
-  Dimensions,
   TextInput,
   StatusBar,
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
-  Alert,
+  useWindowDimensions,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import apiClient from '../../config/apiClient';
 import { USER_ROUTES } from '../../config/routes';
@@ -30,11 +30,15 @@ import {
   Star,
 } from 'lucide-react-native';
 import { CartContext } from '../../context/CartContext';
+import { FavouritesContext } from '../../context/FavouritesContext';
 import FilterDrawer from '../../components/FilterDrawer';
 import Offers from './Offers';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { width } = Dimensions.get('window');
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
+const PROMO_CARD_WIDTH = wp(82);
+const PROMO_CARD_GAP = wp(3.33);
 
 
 const getRatingAverage = item => {
@@ -98,8 +102,8 @@ const RestaurantListCard = memo(({
         >
           <Heart
             size={16}
-            color={isFavorite ? '#FF3B30' : '#111111'}
-            fill={isFavorite ? '#FF3B30' : 'none'}
+            color={isFavorite ? '#ed1c24' : '#111111'}
+            fill={isFavorite ? '#ed1c24' : 'none'}
           />
         </TouchableOpacity>
         <View style={styles.listImageDots}>
@@ -149,7 +153,7 @@ const RestaurantListCard = memo(({
   );
 });
 
-// Removed dummy restaurant data — restaurants are now loaded from API
+
 
 // Skeleton loader component for restaurant cards (vertical)
 const SkeletonCard = memo(() => (
@@ -158,9 +162,9 @@ const SkeletonCard = memo(() => (
       <View style={[styles.listImage, { backgroundColor: '#D3D3D3' }]} />
     </View>
     <View style={styles.listBody}>
-      <View style={{ height: 16, backgroundColor: '#E8E8E8', borderRadius: 4, marginBottom: 8, width: '70%' }} />
-      <View style={{ height: 12, backgroundColor: '#E8E8E8', borderRadius: 3, marginBottom: 6, width: '85%' }} />
-      <View style={{ height: 12, backgroundColor: '#E8E8E8', borderRadius: 3, width: '75%' }} />
+      <View style={{ height: hp(2), backgroundColor: '#E8E8E8', borderRadius: scale(4), marginBottom: hp(1), width: '70%' }} />
+      <View style={{ height: hp(1.5), backgroundColor: '#E8E8E8', borderRadius: scale(3), marginBottom: hp(0.75), width: '85%' }} />
+      <View style={{ height: hp(1.5), backgroundColor: '#E8E8E8', borderRadius: scale(3), width: '75%' }} />
     </View>
   </View>
 ));
@@ -172,9 +176,9 @@ const SkeletonRecommendCard = memo(() => (
       <View style={[styles.recommendImage, { backgroundColor: '#D3D3D3' }]} />
     </View>
     <View style={styles.recommendBody}>
-      <View style={{ height: 14, backgroundColor: '#E8E8E8', borderRadius: 3, marginBottom: 6, width: '70%' }} />
-      <View style={{ height: 11, backgroundColor: '#E8E8E8', borderRadius: 2, marginBottom: 4, width: '85%' }} />
-      <View style={{ height: 11, backgroundColor: '#E8E8E8', borderRadius: 2, width: '75%' }} />
+      <View style={{ height: hp(1.75), backgroundColor: '#E8E8E8', borderRadius: scale(3), marginBottom: hp(0.75), width: '70%' }} />
+      <View style={{ height: hp(1.375), backgroundColor: '#E8E8E8', borderRadius: scale(2), marginBottom: hp(0.5), width: '85%' }} />
+      <View style={{ height: hp(1.375), backgroundColor: '#E8E8E8', borderRadius: scale(2), width: '75%' }} />
     </View>
   </View>
 ));
@@ -183,13 +187,15 @@ const SkeletonRecommendCard = memo(() => (
 const SkeletonFoodItem = memo(() => (
   <View style={styles.foodItem}>
     <View style={[styles.foodImage, { backgroundColor: '#E8E8E8' }]} />
-    <View style={{ height: 12, backgroundColor: '#E8E8E8', borderRadius: 3, marginTop: 8, width: '80%' }} />
+    <View style={{ height: hp(1.5), backgroundColor: '#E8E8E8', borderRadius: scale(3), marginTop: hp(1), width: '80%' }} />
   </View>
 ));
 
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 360;
   const [homeData, setHomeData] = useState(null);
   const [restaurants, setRestaurants] = useState([]);
   const [allRestaurants, setAllRestaurants] = useState([]);
@@ -199,7 +205,6 @@ export default function HomeScreen() {
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(true);
   const [activeTab, setActiveTab] = useState('Restaurants');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [favorites, setFavorites] = useState(new Set());
   const [location, setLocation] = useState(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [pageNum, setPageNum] = useState(0);
@@ -210,6 +215,7 @@ export default function HomeScreen() {
   const [addressLabel, setAddressLabel] = useState('Home');
   const [addressLine, setAddressLine] = useState('loading address...');
   const { cartCount } = useContext(CartContext);
+  const { isFavourite, toggleFavourite } = useContext(FavouritesContext);
 
   // Request location permission with proper dialog
   const requestLocationPermission = async () => {
@@ -326,11 +332,12 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error fetching home data:', error);
       // Show friendly error message
-      Alert.alert(
-        'Connection Issue',
-        'Unable to connect. Please check your internet and try again.',
-        [{ text: 'Retry', onPress: () => fetchHomeData(true) }, { text: 'Dismiss' }]
-      );
+      Toast.show({
+        type: 'topError',
+        text1: 'Connection Issue',
+        text2: 'Unable to connect. Please check your internet and try again.',
+        position: 'top',
+      });
       setRestaurants([]);
     } finally {
       if (showLoading) {
@@ -455,16 +462,17 @@ export default function HomeScreen() {
     }
   };
 
-  // Toggle favorite function
-  const toggleFavorite = (restaurantId) => {
-    setFavorites(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(restaurantId)) {
-        newFavorites.delete(restaurantId);
-      } else {
-        newFavorites.add(restaurantId);
-      }
-      return newFavorites;
+  // Toggle favorite function with proper restaurant data
+  const handleToggleFavorite = (restaurant) => {
+    if (!restaurant) return;
+    
+    toggleFavourite?.({
+      id: restaurant.id || restaurant._id,
+      restaurantId: restaurant.id || restaurant._id,
+      name: restaurant.name,
+      image: restaurant.bannerImage || restaurant.image,
+      restaurantName: restaurant.name,
+      type: 'restaurant',
     });
   };
 
@@ -511,8 +519,8 @@ export default function HomeScreen() {
     : [];
 
   return (
-    <View style={styles.safe}>
-        <StatusBar hidden />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+        {/* <StatusBar hidden /> */}
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* HEADER + SEARCH + TABS */}
@@ -523,7 +531,9 @@ export default function HomeScreen() {
             resizeMode="cover"
           >
             <View style={styles.headerGlass}>
-              <View style={styles.headerRow}>
+              <View
+                style={[styles.headerRow, isSmallDevice && styles.headerRowCompact]}
+              >
                 <View style={styles.headerLeft}>
                   <MapPin size={18} color="#111111" />
                   <View style={styles.addressBlock}>
@@ -586,7 +596,7 @@ export default function HomeScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.searchBox}
+                style={[styles.searchBox, isSmallDevice && styles.searchBoxCompact]}
                 activeOpacity={0.9}
                 onPress={() => {
                   const tabNav = navigation.getParent?.();
@@ -611,18 +621,22 @@ export default function HomeScreen() {
                 />
               </TouchableOpacity>
 
-              <View style={styles.tabs}>
+              <View style={[styles.tabs, isSmallDevice && styles.tabsCompact]}>
                 {tabs.map(label => {
                   const isActive = activeTab === label;
                   return (
                     <TouchableOpacity
                       key={label}
-                      style={styles.tabItem}
+                      style={[styles.tabItem, isSmallDevice && styles.tabItemCompact]}
                       activeOpacity={0.85}
                       onPress={() => setActiveTab(label)}
                     >
                       <Text
-                        style={isActive ? styles.tabTextActive : styles.tabText}
+                        style={
+                          isActive
+                            ? [styles.tabTextActive, isSmallDevice && styles.tabTextCompact]
+                            : [styles.tabText, isSmallDevice && styles.tabTextCompact]
+                        }
                       >
                         {label}
                       </Text>
@@ -695,7 +709,7 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   nestedScrollEnabled
                   contentContainerStyle={styles.promoList}
-                  snapToInterval={Math.round(width * 0.82) + 12}
+                  snapToInterval={Math.round(PROMO_CARD_WIDTH) + PROMO_CARD_GAP}
                   decelerationRate="fast"
                   renderItem={({ item }) => (
                     <TouchableOpacity
@@ -726,7 +740,7 @@ export default function HomeScreen() {
               {/* RECOMMENDED */}
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Recommended For You</Text>
-                <Text style={styles.viewAll}>View All</Text>
+                {/* <Text style={styles.viewAll}>View All</Text> */}
               </View>
 
               {isLoadingRestaurants ? (
@@ -759,7 +773,7 @@ export default function HomeScreen() {
                       const ratingCount = getRatingCount(item);
                       const bestSellerText =
                         item?.bestSeller || 'Popular choice';
-                      const isFavorite = favorites.has(item.id);
+                      const isFavoriteItem = isFavourite?.(item.id, 'restaurant');
 
                       return (
                         <TouchableOpacity
@@ -778,12 +792,12 @@ export default function HomeScreen() {
                             <TouchableOpacity
                               style={styles.favBtn}
                               activeOpacity={0.8}
-                              onPress={() => toggleFavorite(item.id)}
+                              onPress={() => handleToggleFavorite(item)}
                             >
                               <Heart
                                 size={16}
-                                color={isFavorite ? '#FF3B30' : '#111111'}
-                                fill={isFavorite ? '#FF3B30' : 'none'}
+                                color={isFavoriteItem ? '#ed1c24' : '#111111'}
+                                fill={isFavoriteItem ? '#ed1c24' : 'none'}
                               />
                             </TouchableOpacity>
                             <View style={styles.imageDots}>
@@ -846,7 +860,7 @@ export default function HomeScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Explore Restaurants</Text>
                 <View style={styles.sortActions}>
-                  <TouchableOpacity activeOpacity={0.85} onPress={() => {}}>
+                  {/* <TouchableOpacity activeOpacity={0.85} onPress={() => {}}>
                     <Text style={styles.sortText}>Sort</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -854,27 +868,27 @@ export default function HomeScreen() {
                     onPress={() => setIsFilterOpen(true)}
                   >
                     <Text style={styles.sortText}>Filter</Text>
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </View>
               </View>
 
               {isLoadingRestaurants ? (
-                <View style={{ marginBottom: 40 }}>
+                <View style={{ marginBottom: hp(5) }}>
                   <FlatList
                     data={Array(6).fill(null)}
                     keyExtractor={(_, index) => `skeleton-${index}`}
                     scrollEnabled={false}
                     renderItem={() => <SkeletonCard />}
                   />
-                  <View style={{ justifyContent: 'center', alignItems: 'center', paddingVertical: 12 }}>
-                    <ActivityIndicator size="small" color="#FF3B30" />
-                    <Text style={{ marginTop: 8, color: '#8E8E93', fontSize: 12 }}>
+                  <View style={{ justifyContent: 'center', alignItems: 'center', paddingVertical: hp(1.5) }}>
+                    <ActivityIndicator size="small" color="#ed1c24" />
+                    <Text style={{ marginTop: hp(1), color: '#8E8E93', fontSize: FONT.xs }}>
                       Loading restaurants...
                     </Text>
                   </View>
                 </View>
               ) : restaurants.length > 0 ? (
-                <View style={{ marginBottom: 40 }}>
+                <View style={{ marginBottom: hp(5) }}>
                   <FlatList
                     data={restaurants}
                     keyExtractor={item => item.id}
@@ -882,13 +896,13 @@ export default function HomeScreen() {
                     renderItem={({ item }) => (
                       <RestaurantListCard
                         item={item}
-                        isFavorite={favorites.has(item.id)}
+                        isFavorite={isFavourite?.(item.id, 'restaurant')}
                         onPress={() =>
                           navigation.navigate('RestaurantDetail', {
                             restaurant: item,
                           })
                         }
-                        onFavoritePress={() => toggleFavorite(item.id)}
+                        onFavoritePress={() => handleToggleFavorite(item)}
                       />
                     )}
                     onEndReached={loadMoreRestaurants}
@@ -896,16 +910,16 @@ export default function HomeScreen() {
                   />
                 </View>
               ) : (
-                <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' }}>
-                  <Text style={{ color: '#8E8E93', fontSize: 14, marginBottom: 12 }}>
+                <View style={{ height: hp(25), justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ color: '#8E8E93', fontSize: FONT.sm, marginBottom: hp(1.5) }}>
                     No restaurants available
                   </Text>
                   <TouchableOpacity
                     style={{
-                      paddingHorizontal: 20,
-                      paddingVertical: 10,
-                      backgroundColor: '#FF3B30',
-                      borderRadius: 8,
+                      paddingHorizontal: wp(5.56),
+                      paddingVertical: hp(1.25),
+                      backgroundColor: '#ed1c24',
+                      borderRadius: scale(8),
                       opacity: isRefreshing ? 0.6 : 1,
                     }}
                     disabled={isRefreshing}
@@ -922,7 +936,7 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              <View style={{ height: 40 }} />
+              <View style={{ height: hp(5) }} />
             </>
           )}
         </ScrollView>
@@ -933,13 +947,13 @@ export default function HomeScreen() {
         onReset={() => {}}
         onApply={() => {}}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ed1c24',
     overflow:'hidden'
   },
 
@@ -949,9 +963,8 @@ const styles = StyleSheet.create({
   },
 
   headerBg: {
-    height: 250,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: hp(0),
+    paddingBottom: hp(0.5),
     overflow: 'hidden',
   },
 
@@ -962,29 +975,29 @@ const styles = StyleSheet.create({
   },
 
   headerGlass: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: wp(4.44),
+    paddingBottom: hp(0),
     backgroundColor: 'transparent',
   },
 
   cartBadge: {
     position: 'absolute',
-    top: -6,
-    right: -6,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    borderRadius: 9,
+    top: hp(-0.75),
+    right: wp(-1.67),
+    minWidth: wp(5),
+    height: hp(2.25),
+    paddingHorizontal: wp(1.39),
+    borderRadius: scale(9),
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FF3D3D',
+    borderWidth: scale(2),
+    borderColor: '#ed1c24',
   },
 
   cartBadgeText: {
-    color: '#FF3D3D',
-    fontSize: 10,
+    color: '#ed1c24',
+    fontSize: FONT.xs + scale(-2),
     fontWeight: '800',
     includeFontPadding: false,
     textAlignVertical: 'center',
@@ -994,172 +1007,194 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 40,
+    paddingTop: hp(2.5),
+  },
+
+  headerRowCompact: {
+    paddingTop: hp(1.75),
   },
 
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: wp(2.78),
   },
 
   addressBlock: {
-    paddingTop: 1,
+    paddingTop: hp(0.125),
   },
 
   homeLabel: {
-    fontSize: 12,
+    fontSize: FONT.xs + scale(-1),
     color: '#8E8E93',
   },
 
   location: {
-    fontSize: 16,
+    fontSize: FONT.sm + scale(1),
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: hp(0.25),
     color: '#111111',
   },
 
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: wp(3.33),
   },
 
   avatarRing: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#FF3B30',
+    width: wp(11.11),
+    height: hp(5),
+    borderRadius: scale(20),
+    borderWidth: scale(2),
+    borderColor: '#ed1c24',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
 
   avatarImg: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: wp(9.44),
+    height: hp(4.25),
+    borderRadius: scale(17),
     resizeMode: 'cover',
   },
 
   actionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FF3B30',
+    width: wp(12.22),
+    height: hp(5.5),
+    borderRadius: scale(22),
+    backgroundColor: '#ed1c24',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   searchBox: {
-    marginTop: 14,
-    height: 52,
-    borderRadius: 26,
+    marginTop: hp(1.75),
+    height: hp(6.5),
+    borderRadius: scale(26),
     backgroundColor: 'rgba(255,255,255,0.92)',
-    borderWidth: 1,
+    borderWidth: scale(1),
     borderColor: 'rgba(0,0,0,0.12)',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 10,
+    paddingHorizontal: wp(4.44),
+    gap: wp(2.78),
+  },
+
+  searchBoxCompact: {
+    height: hp(5.75),
+    marginTop: hp(1.25),
   },
 
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: FONT.sm,
     color: '#111111',
     paddingVertical: 0,
   },
 
   tabs: {
     flexDirection: 'row',
-    marginTop: 18,
+    marginTop: hp(2.25),
+  },
+
+  tabsCompact: {
+    marginTop: hp(1.5),
   },
 
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: hp(1.5),
+    paddingBottom: hp(1),
+  },
+
+  tabItemCompact: {
+    paddingTop: hp(1.25),
+    paddingBottom: hp(0.75),
   },
 
   tabText: {
-    fontSize: 16,
+    fontSize: FONT.sm + scale(2),
     color: '#111111',
     fontWeight: '700',
     opacity: 0.65,
   },
 
   tabTextActive: {
-    fontSize: 16,
+    fontSize: FONT.sm + scale(2),
     color: '#111111',
     fontWeight: '700',
     opacity: 1,
+  },
+
+  tabTextCompact: {
+    fontSize: FONT.sm + scale(1),
   },
 
   tabUnderline: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: -15,
-    height: 2,
-    backgroundColor: '#FF3B30',
+    bottom: 0,
+    height: hp(0.25),
+    backgroundColor: '#ed1c24',
   },
 
   foodList: {
-    paddingLeft: 16,
-    marginTop: 18,
-    paddingBottom: 4,
+    paddingLeft: wp(4.44),
+    marginTop: hp(2.25),
+    paddingBottom: hp(0.5),
   },
 
   foodItem: {
     alignItems: 'center',
-    marginRight: 15,
-    width: 90,
-    height: 110,
+    marginRight: wp(4.17),
+    width: wp(25),
+    height: hp(13.75),
     backgroundColor: '#FDEEEE',
-    borderRadius: 22,
-    paddingTop: 14,
-    paddingBottom: 12,
+    borderRadius: scale(22),
+    paddingTop: hp(1.75),
+    paddingBottom: hp(1.5),
     justifyContent: 'flex-start',
     shadowColor: '#000',
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: scale(8),
     elevation: 2,
   },
 
   foodImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 32,
-    marginBottom: 10,
+    width: wp(16.67),
+    height: hp(7.5),
+    borderRadius: scale(32),
+    marginBottom: hp(1.25),
   },
 
   foodTitle: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     fontWeight: '500',
     color: '#2A2A2A',
   },
 
   promoList: {
-    paddingLeft: 16,
-    paddingRight: 6,
-    marginTop: 18,
+    paddingLeft: wp(4.44),
+    paddingRight: wp(1.67),
+    marginTop: hp(2.25),
   },
 
   promoCard: {
-    width: Math.round(width * 0.82),
-    marginRight: 12,
-    borderRadius: 20,
+    width: Math.round(PROMO_CARD_WIDTH),
+    marginRight: PROMO_CARD_GAP,
+    borderRadius: scale(20),
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
 
   promoImage: {
     width: '100%',
-    height: 150,
+    height: hp(18.75),
   },
 
   promoShade: {
@@ -1173,152 +1208,152 @@ const styles = StyleSheet.create({
 
   promoOverlay: {
     position: 'absolute',
-    top: 14,
-    left: 14,
-    right: 14,
+    top: hp(1.75),
+    left: wp(3.89),
+    right: wp(3.89),
   },
 
   promoTitle: {
     color: '#FFFFFF',
-    fontSize: 23,
+    fontSize: FONT.lg + scale(2),
     fontWeight: '400',
   },
 
   promoSub: {
     color: '#FFFFFF',
-    fontSize: 23,
-    marginTop: 2,
+    fontSize: FONT.lg + scale(2),
+    marginTop: hp(0.25),
     fontWeight: '400',
   },
 
   promoBtn: {
-    marginTop: 10,
+    marginTop: hp(1.25),
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    borderRadius: scale(10),
+    paddingHorizontal: wp(3.89),
+    paddingVertical: hp(0.75),
     alignSelf: 'flex-start',
   },
 
   promoBtnText: {
-    fontSize: 12,
+    fontSize: FONT.xs,
     fontWeight: '700',
     color: '#111111',
   },
 
   sectionHeader: {
-    marginTop: 30,
-    paddingHorizontal: 16,
+    marginTop: hp(3.75),
+    paddingHorizontal: wp(4.44),
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
 
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FONT.md + scale(2),
     fontWeight: '600',
   },
 
   viewAll: {
-    fontSize: 14,
-    color: '#FF3B30',
+    fontSize: FONT.sm,
+    color: '#ed1c24',
     fontWeight: '600',
   },
 
   sortText: {
-    fontSize: 16,
+    fontSize: FONT.md,
     color: '#8E8E93',
     gap: 4,
   },
   sortActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: wp(2.78),
   },
 
   recommendList: {
-    paddingLeft: 16,
-    marginTop: 14,
-    paddingBottom: 16,
+    paddingLeft: wp(4.44),
+    marginTop: hp(1.75),
+    paddingBottom: hp(2),
   },
 
   recommendCard: {
-    width: 260,
-    borderRadius: 18,
+    width: wp(72.22),
+    borderRadius: scale(18),
     backgroundColor: '#FFFFFF',
-    marginRight: 16,
+    marginRight: wp(4.44),
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: hp(0.5) },
+    shadowRadius: scale(12),
     elevation: 4,
     overflow: 'visible',
   },
 
   recommendImageWrap: {
     position: 'relative',
-    padding: 5,
+    padding: wp(1.39),
   },
 
   recommendImage: {
     width: '100%',
-    height: 145,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    borderRadius: 18,
+    height: hp(18.125),
+    borderTopLeftRadius: scale(18),
+    borderTopRightRadius: scale(18),
+    borderRadius: scale(18),
   },
 
   favBtn: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    top: hp(1.25),
+    right: wp(2.78),
+    width: wp(9.44),
+    height: hp(4.25),
+    borderRadius: scale(17),
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.12,
-    shadowRadius: 6,
+    shadowRadius: scale(6),
     elevation: 2,
   },
 
   imageDots: {
     position: 'absolute',
-    right: 12,
-    bottom: 10,
+    right: wp(3.33),
+    bottom: hp(1.25),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: wp(1.67),
   },
 
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: wp(1.67),
+    height: hp(0.75),
+    borderRadius: scale(3),
     backgroundColor: 'rgba(255,255,255,0.6)',
   },
 
   dotActive: {
-    width: 16,
-    height: 6,
-    borderRadius: 3,
+    width: wp(4.44),
+    height: hp(0.75),
+    borderRadius: scale(3),
     backgroundColor: '#FFFFFF',
   },
 
   recommendBody: {
-    padding: 12,
+    padding: scale(12),
   },
 
   recommendTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: wp(2.22),
   },
 
   recommendTitle: {
-    fontSize: 16,
+    fontSize: FONT.sm + scale(2),
     fontWeight: '700',
     color: '#111111',
     flex: 1,
@@ -1327,57 +1362,57 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: wp(1.11),
   },
 
   ratingValue: {
-    fontSize: 14,
+    fontSize: FONT.sm,
     fontWeight: '700',
     color: '#111111',
   },
 
   ratingCount: {
-    fontSize: 12,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
   },
 
   recommendMeta: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
-    marginTop: 6,
+    marginTop: hp(0.75),
   },
 
   recommendSubMeta: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
-    marginTop: 6,
+    marginTop: hp(0.75),
   },
 
   bestSellerPill: {
-    marginTop: 10,
+    marginTop: hp(1.25),
     backgroundColor: '#FDEEEE',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: scale(14),
+    paddingHorizontal: wp(2.78),
+    paddingVertical: hp(0.75),
     alignSelf: 'flex-start',
   },
 
   bestSellerText: {
-    fontSize: 12,
+    fontSize: FONT.xs,
     color: '#5B3B3B',
     fontWeight: '600',
   },
 
   listCard: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    borderRadius: 18,
+    marginHorizontal: wp(4.44),
+    marginTop: hp(1.75),
+    borderRadius: scale(18),
     backgroundColor: '#FFFFFF',
     elevation: 3,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: hp(0.5) },
+    shadowRadius: scale(12),
     overflow: 'visible',
   },
 
@@ -1387,63 +1422,63 @@ const styles = StyleSheet.create({
 
   listImage: {
     width: '100%',
-    height: 155,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    height: hp(19.375),
+    borderTopLeftRadius: scale(18),
+    borderTopRightRadius: scale(18),
   },
 
   listFavBtn: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    top: hp(1.25),
+    right: wp(2.78),
+    width: wp(9.44),
+    height: hp(4.25),
+    borderRadius: scale(17),
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.12,
-    shadowRadius: 6,
+    shadowRadius: scale(6),
     elevation: 2,
   },
 
   listImageDots: {
     position: 'absolute',
-    right: 12,
-    bottom: 10,
+    right: wp(3.33),
+    bottom: hp(1.25),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: wp(1.67),
   },
 
   listDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: wp(1.67),
+    height: hp(0.75),
+    borderRadius: scale(3),
     backgroundColor: 'rgba(255,255,255,0.6)',
   },
 
   listDotActive: {
-    width: 16,
-    height: 6,
-    borderRadius: 3,
+    width: wp(4.44),
+    height: hp(0.75),
+    borderRadius: scale(3),
     backgroundColor: '#FFFFFF',
   },
 
   listBody: {
-    padding: 12,
+    padding: scale(12),
   },
 
   listTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: wp(2.22),
   },
 
   listTitle: {
-    fontSize: 16,
+    fontSize: FONT.sm + scale(2),
     fontWeight: '700',
     color: '#111111',
     flex: 1,
@@ -1452,50 +1487,50 @@ const styles = StyleSheet.create({
   listRatingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: wp(1.11),
   },
 
   listRatingValue: {
-    fontSize: 14,
+    fontSize: FONT.sm,
     fontWeight: '700',
     color: '#111111',
   },
 
   listRatingCount: {
-    fontSize: 12,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
   },
 
   listMeta: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
-    marginTop: 6,
+    marginTop: hp(0.75),
   },
 
   listSubMeta: {
-    fontSize: 13,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
-    marginTop: 6,
+    marginTop: hp(0.75),
   },
 
   listBestSellerPill: {
-    marginTop: 10,
+    marginTop: hp(1.25),
     backgroundColor: '#FDEEEE',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: scale(14),
+    paddingHorizontal: wp(2.78),
+    paddingVertical: hp(0.75),
     alignSelf: 'flex-start',
   },
 
   listBestSellerText: {
-    fontSize: 12,
+    fontSize: FONT.xs,
     color: '#5B3B3B',
     fontWeight: '600',
   },
 
   priceText: {
-    fontSize: 12,
+    fontSize: FONT.xs,
     color: '#6E6E6E',
-    marginTop: 4,
+    marginTop: hp(0.5),
   },
 });

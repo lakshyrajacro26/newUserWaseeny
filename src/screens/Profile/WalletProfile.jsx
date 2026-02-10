@@ -1,62 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, DollarSign } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const TRANSACTIONS = [
-  {
-    id: 'A12345678',
-    title: 'Ocean Breeze Café',
-    method: 'Credit Card',
-    date: '02 Sep 2025, 7:45 PM',
-    amount: 850,
-  },
-  {
-    id: 'A12345678-2',
-    title: 'Ocean Breeze Café',
-    method: 'Credit Card',
-    date: '02 Sep 2025, 7:45 PM',
-    amount: 850,
-  },
-  {
-    id: 'A12345678-3',
-    title: 'Ocean Breeze Café',
-    method: 'Credit Card',
-    date: '02 Sep 2025, 7:45 PM',
-    amount: 850,
-  },
-  {
-    id: 'A12345678-4',
-    title: 'Ocean Breeze Café',
-    method: 'Credit Card',
-    date: '02 Sep 2025, 7:45 PM',
-    amount: 850,
-  },
-  {
-    id: 'A12345678-5',
-    title: 'Ocean Breeze Café',
-    method: 'Credit Card',
-    date: '02 Sep 2025, 7:45 PM',
-    amount: 850,
-  },
-  {
-    id: 'A12345678-6',
-    title: 'Ocean Breeze Café',
-    method: 'Credit Card',
-    date: '02 Sep 2025, 7:45 PM',
-    amount: 850,
-  },
-];
+import { getWallet } from '../../services/walletService';
 
 export default function WalletProfile() {
   const navigation = useNavigation();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState(null);
+  const [walletData, setWalletData] = useState({
+    balance: 0,
+    transactions: [],
+  });
+
+  useEffect(() => {
+    fetchWalletData();
+  }, []);
+
+  const fetchWalletData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getWallet();
+      
+      setWalletData({
+        balance: data?.balance ?? data?.walletBalance ?? 0,
+        transactions: data?.transactions ?? [],
+      });
+    } catch (err) {
+      console.error('Failed to fetch wallet data:', err);
+      setError('Failed to load wallet data. Please try again.');
+      Toast.show({
+        type: 'topError',
+        text1: 'Error',
+        text2: 'Failed to load wallet data',
+        position: 'top',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    fetchWalletData();
+  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -72,38 +69,72 @@ export default function WalletProfile() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceValue}>₹ 0</Text>
-          <Text style={styles.balanceLabel}>Total Wallet Balance</Text>
-          <View style={styles.balanceGlow} />
-          <View style={styles.balanceGlowSmall} />
+      {isLoading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#E41C26" />
+          <Text style={styles.loaderText}>Loading wallet...</Text>
         </View>
-
-        <Text style={styles.sectionTitle}>All Transactions</Text>
-
-        {TRANSACTIONS.map(item => (
-          <View key={item.id} style={styles.txCard}>
-            <View style={styles.txLeft}>
-              <View style={styles.txIconWrap}>
-                <DollarSign size={14} color="#111" />
-              </View>
-              <View style={styles.txMeta}>
-                <Text style={styles.txId}>#{item.id}</Text>
-                <Text style={styles.txTitle}>{item.title}</Text>
-                <Text style={styles.txMethod}>{item.method}</Text>
-              </View>
-            </View>
-            <View style={styles.txRight}>
-              <Text style={styles.txDate}>{item.date}</Text>
-              <Text style={styles.txAmount}>₹ {item.amount.toFixed(2)}</Text>
-            </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
+          refreshing={isFetching}
+          onRefresh={fetchWalletData}
+        >
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceValue}>
+              ₹ {walletData.balance.toFixed(2)}
+            </Text>
+            <Text style={styles.balanceLabel}>Total Wallet Balance</Text>
+            <View style={styles.balanceGlow} />
+            <View style={styles.balanceGlowSmall} />
           </View>
-        ))}
-      </ScrollView>
+
+          <Text style={styles.sectionTitle}>
+            {walletData.transactions.length > 0
+              ? 'All Transactions'
+              : 'No Transactions'}
+          </Text>
+
+          {walletData.transactions.length > 0 ? (
+            walletData.transactions.map(item => (
+              <View key={item.id} style={styles.txCard}>
+                <View style={styles.txLeft}>
+                  <View style={styles.txIconWrap}>
+                    <DollarSign size={14} color="#111" />
+                  </View>
+                  <View style={styles.txMeta}>
+                    <Text style={styles.txId}>#{item.id}</Text>
+                    <Text style={styles.txTitle}>{item.title || 'Transaction'}</Text>
+                    <Text style={styles.txMethod}>{item.method || 'Payment'}</Text>
+                  </View>
+                </View>
+                <View style={styles.txRight}>
+                  <Text style={styles.txDate}>{item.date}</Text>
+                  <Text style={styles.txAmount}>
+                    ₹ {typeof item.amount === 'number'
+                      ? item.amount.toFixed(2)
+                      : item.amount}
+                  </Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                No transactions yet. Your transactions will appear here.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -204,4 +235,52 @@ const styles = StyleSheet.create({
   txRight: { alignItems: 'flex-end' },
   txDate: { fontSize: 9, color: '#8E8E8E', marginBottom: 4 },
   txAmount: { fontSize: 12, color: '#111', fontWeight: '700' },
+
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loaderText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#E41C26',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  retryBtn: {
+    backgroundColor: '#E41C26',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  emptyContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#8E8E8E',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
 });

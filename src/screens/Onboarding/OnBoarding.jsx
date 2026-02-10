@@ -1,21 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-
-const { width, height } = Dimensions.get('window');
+import { wp, hp } from '../../utils/responsive';
+import { scale } from '../../utils/scale';
+import { FONT_SIZES as FONT } from '../../theme/typography';
 
 export default function EasyOrderingScreen() {
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
 
-  /**
-   * PRODUCTION ROUTING:
-   * After onboarding, user goes to:
-   * - LoginScreen if not authenticated
-   * - MainTabs (HomeStack) if already authenticated
-   */
+
   const handleGetStarted = () => {
     if (isAuthenticated) {
       navigation.replace('MainTabs');
@@ -50,9 +46,9 @@ export default function EasyOrderingScreen() {
         </View>
 
         {/* Button */}
-        <Pressable style={styles.button} onPress={handleGetStarted}>
+        <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
           <Text style={styles.buttonText}>Get Started</Text>
-        </Pressable>
+        </TouchableOpacity>
 
       </View>
     </SafeAreaView>
@@ -66,64 +62,64 @@ const styles = StyleSheet.create({
   },
 
   topImage: {
-    width: width,
-    height: height * 0.55,
-    borderBottomLeftRadius: width,
-    borderBottomRightRadius: width,
+    width: wp(100),
+    height: hp(55),
+    borderBottomLeftRadius: wp(100),
+    borderBottomRightRadius: wp(100),
     overflow: 'hidden',
   },
 
   content: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingHorizontal: wp(8.33),
+    paddingTop: hp(5),
   },
 
   title: {
-    fontSize: 26,
+    fontSize: FONT.xxl,
     fontWeight: '700',
     color: '#111',
-    marginBottom: 12,
+    marginBottom: hp(1.5),
   },
 
   subtitle: {
-    fontSize: 15,
+    fontSize: FONT.sm,
     color: '#777',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: hp(2.75),
   },
 
   dots: {
     flexDirection: 'row',
-    marginTop: 25,
-    marginBottom: 40,
+    marginTop: hp(3.125),
+    marginBottom: hp(5),
   },
 
   dot: {
-    width: 18,
-    height: 4,
+    width: wp(5),
+    height: hp(0.5),
     backgroundColor: '#ddd',
-    borderRadius: 10,
-    marginHorizontal: 4,
+    borderRadius: scale(10),
+    marginHorizontal: wp(1.11),
   },
 
   active: {
-    backgroundColor: '#E11D2E',
-    width: 26,
+    backgroundColor: '#ed1c24',
+    width: wp(7.22),
   },
 
   button: {
     width: '100%',
-    backgroundColor: '#E11D2E',
-    paddingVertical: 16,
-    borderRadius: 14,
+    backgroundColor: '#ed1c24',
+    paddingVertical: hp(2),
+    borderRadius: scale(14),
     alignItems: 'center',
   },
 
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: FONT.md,
     fontWeight: '600',
   },
 });
