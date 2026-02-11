@@ -119,3 +119,8 @@ export const resetPassword = async ({ resetToken, newPassword }) => {
   const response = await apiClient.post(AUTH_ROUTES.resetPassword, payload);
   return response?.data ?? {};
 };
+
+export const logoutApi = async () => {
+  const response = await apiClient.post(AUTH_ROUTES.logout);
+  return response?.data ?? {};
+};

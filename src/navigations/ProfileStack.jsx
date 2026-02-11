@@ -18,6 +18,7 @@ import DeletionComplete from '../screens/Profile/DeletionComplete';
 import NewAddress from '../screens/Profile/NewAddress';
 import Coupons from '../screens/Profile/Coupons';
 import WalletProfile from '../screens/Profile/WalletProfile';
+import Favourite from '../screens/Favourite';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,7 @@ export default function ProfileStack() {
       <Stack.Screen name="Coupons" component={Coupons} />
       <Stack.Screen name="WalletProfile" component={WalletProfile} />
       <Stack.Screen name="DeletionComplete" component={DeletionComplete} />
+      <Stack.Screen name="Favourite" component={Favourite} />
     </Stack.Navigator>
   );
 }

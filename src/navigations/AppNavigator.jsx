@@ -13,9 +13,6 @@ import Signup from '../screens/Auth/Signup';
 import FoodPreference from '../screens/Onboarding/FoodPreference';
 import HomePage from '../screens/Home/HomePage.jsx';
 import TabNavigator from './TabNavigator';
-import ReviewOrderScreen from '../screens/ReviewOrderScreen';
-import OrderDetailsScreen from '../screens/Orders/OrderDetailsScreen';
-import Favourite from '../screens/Favourite';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -48,12 +45,6 @@ export default function AppNavigator() {
 {/* // ): ( */}
  <>
         <Stack.Screen name="MainTabs" component={TabNavigator} />
-        <Stack.Screen name="Favourite" component={Favourite} />
-        <Stack.Screen name="ReviewOrderScreen" component={ReviewOrderScreen} />
-        <Stack.Screen
-          name="OrderDetailsScreen"
-          component={OrderDetailsScreen}
-        />
         </>
         {/* )} */}
       </Stack.Navigator>

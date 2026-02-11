@@ -303,9 +303,9 @@ export default function CartScreen() {
             <View style={styles.deliveryCard}>
               <Text style={styles.deliveryLabel}>Estimated Delivery</Text>
               <Text style={styles.deliveryValue}>{estimatedDelivery}</Text>
-              <TouchableOpacity style={styles.deliveryChange}>
+              {/* <TouchableOpacity style={styles.deliveryChange}>
                 <Text style={styles.deliveryChangeText}>Change</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
 
             {groups.map(group => {
@@ -326,9 +326,9 @@ export default function CartScreen() {
                           'Pizza, Italian, Fast Food'}
                       </Text>
                     </View>
-                    <TouchableOpacity style={styles.restaurantArrow}>
+                    {/* <TouchableOpacity style={styles.restaurantArrow}>
                       <Text style={styles.restaurantArrowText}>›</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                   </View>
 
                   {group.items.map(ci => {
@@ -512,8 +512,7 @@ export default function CartScreen() {
             style={styles.reviewBtn}
             activeOpacity={0.9}
             onPress={() => {
-              if (rootNav?.navigate) rootNav.navigate('ReviewOrderScreen');
-              else navigation.navigate('ReviewOrderScreen');
+              navigation.navigate('ReviewOrderScreen');
             }}
           >
             <Text style={styles.reviewBtnText}>Review Order</Text>

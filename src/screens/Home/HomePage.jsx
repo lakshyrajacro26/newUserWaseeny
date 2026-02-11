@@ -40,7 +40,6 @@ import { FONT_SIZES as FONT } from '../../theme/typography';
 const PROMO_CARD_WIDTH = wp(82);
 const PROMO_CARD_GAP = wp(3.33);
 
-
 const getRatingAverage = item => {
   if (typeof item?.rating?.average === 'number') return item.rating.average;
   if (typeof item?.ratingAverage === 'number') return item.ratingAverage;
@@ -66,94 +65,89 @@ const getRatingCount = item => {
   return item?.ratingCount || 0;
 };
 
-const RestaurantListCard = memo(({ 
-  item, 
-  isFavorite, 
-  onPress, 
-  onFavoritePress 
-}) => {
-  const cuisines = Array.isArray(item?.cuisine)
-    ? item.cuisine
-    : (Array.isArray(item?.cuisines) ? item.cuisines : []);
-  const cuisineText = cuisines.length > 0
-    ? cuisines.join(', ')
-    : 'Pizza, Italian, Fast Food';
-  const distanceText = item?.distance || null;
-  const timeText = item?.deliveryTime ? `${item.deliveryTime} minutes` : '20 - 30 minutes';
-  const ratingValue = getRatingAverage(item);
-  const ratingCount = getRatingCount(item);
-  const bestSellerText = item?.bestSeller || 'Popular choice';
+const RestaurantListCard = memo(
+  ({ item, isFavorite, onPress, onFavoritePress }) => {
+    const cuisines = Array.isArray(item?.cuisine)
+      ? item.cuisine
+      : Array.isArray(item?.cuisines)
+      ? item.cuisines
+      : [];
+    const cuisineText =
+      cuisines.length > 0 ? cuisines.join(', ') : 'Pizza, Italian, Fast Food';
+    const distanceText = item?.distance || null;
+    const timeText = item?.deliveryTime
+      ? `${item.deliveryTime} minutes`
+      : '20 - 30 minutes';
+    const ratingValue = getRatingAverage(item);
+    const ratingCount = getRatingCount(item);
+    const bestSellerText = item?.bestSeller || 'Popular choice';
 
-  return (
-    <TouchableOpacity
-      style={styles.listCard}
-      activeOpacity={0.9}
-      onPress={onPress}
-    >
-      <View style={styles.listImageWrap}>
-        <Image
-          source={(item.bannerImage && item.bannerImage.trim()) ? { uri: item.bannerImage } : require('../../assets/images/Food.png')}
-          style={styles.listImage}
-        />
-        <TouchableOpacity
-          style={styles.listFavBtn}
-          activeOpacity={0.8}
-          onPress={onFavoritePress}
-        >
-          <Heart
-            size={16}
-            color={isFavorite ? '#ed1c24' : '#111111'}
-            fill={isFavorite ? '#ed1c24' : 'none'}
+    return (
+      <TouchableOpacity
+        style={styles.listCard}
+        activeOpacity={0.9}
+        onPress={onPress}
+      >
+        <View style={styles.listImageWrap}>
+          <Image
+            source={
+              item.bannerImage && item.bannerImage.trim()
+                ? { uri: item.bannerImage }
+                : require('../../assets/images/Food.png')
+            }
+            style={styles.listImage}
           />
-        </TouchableOpacity>
-        <View style={styles.listImageDots}>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <View
-              key={`list-dot-${index}`}
-              style={
-                index === 4
-                  ? [styles.listDot, styles.listDotActive]
-                  : styles.listDot
-              }
+          <TouchableOpacity
+            style={styles.listFavBtn}
+            activeOpacity={0.8}
+            onPress={onFavoritePress}
+          >
+            <Heart
+              size={16}
+              color={isFavorite ? '#ed1c24' : '#111111'}
+              fill={isFavorite ? '#ed1c24' : 'none'}
             />
-          ))}
+          </TouchableOpacity>
+          <View style={styles.listImageDots}>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <View
+                key={`list-dot-${index}`}
+                style={
+                  index === 4
+                    ? [styles.listDot, styles.listDotActive]
+                    : styles.listDot
+                }
+              />
+            ))}
+          </View>
         </View>
-      </View>
-      <View style={styles.listBody}>
-        <View style={styles.listTitleRow}>
-          <Text style={styles.listTitle} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <View style={styles.listRatingRow}>
-            <Star size={14} color="#F5A623" fill="#F5A623" />
-            <Text style={styles.listRatingValue}>
-              {ratingValue}
+        <View style={styles.listBody}>
+          <View style={styles.listTitleRow}>
+            <Text style={styles.listTitle} numberOfLines={1}>
+              {item.name}
             </Text>
-            <Text style={styles.listRatingCount}>
-              ({ratingCount})
+            <View style={styles.listRatingRow}>
+              <Star size={14} color="#F5A623" fill="#F5A623" />
+              <Text style={styles.listRatingValue}>{ratingValue}</Text>
+              <Text style={styles.listRatingCount}>({ratingCount})</Text>
+            </View>
+          </View>
+          <Text style={styles.listMeta} numberOfLines={1}>
+            {cuisineText}
+          </Text>
+          <Text style={styles.listSubMeta} numberOfLines={1}>
+            {distanceText ? `${distanceText} away | ${timeText}` : timeText}
+          </Text>
+          <View style={styles.listBestSellerPill}>
+            <Text style={styles.listBestSellerText} numberOfLines={1}>
+              {bestSellerText}
             </Text>
           </View>
         </View>
-        <Text style={styles.listMeta} numberOfLines={1}>
-          {cuisineText}
-        </Text>
-        <Text style={styles.listSubMeta} numberOfLines={1}>
-          {distanceText ? `${distanceText} away | ${timeText}` : timeText}
-        </Text>
-        <View style={styles.listBestSellerPill}>
-          <Text
-            style={styles.listBestSellerText}
-            numberOfLines={1}
-          >
-            {bestSellerText}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
-
+      </TouchableOpacity>
+    );
+  },
+);
 
 // Skeleton loader component for restaurant cards (vertical)
 const SkeletonCard = memo(() => (
@@ -162,9 +156,32 @@ const SkeletonCard = memo(() => (
       <View style={[styles.listImage, { backgroundColor: '#D3D3D3' }]} />
     </View>
     <View style={styles.listBody}>
-      <View style={{ height: hp(2), backgroundColor: '#E8E8E8', borderRadius: scale(4), marginBottom: hp(1), width: '70%' }} />
-      <View style={{ height: hp(1.5), backgroundColor: '#E8E8E8', borderRadius: scale(3), marginBottom: hp(0.75), width: '85%' }} />
-      <View style={{ height: hp(1.5), backgroundColor: '#E8E8E8', borderRadius: scale(3), width: '75%' }} />
+      <View
+        style={{
+          height: hp(2),
+          backgroundColor: '#E8E8E8',
+          borderRadius: scale(4),
+          marginBottom: hp(1),
+          width: '70%',
+        }}
+      />
+      <View
+        style={{
+          height: hp(1.5),
+          backgroundColor: '#E8E8E8',
+          borderRadius: scale(3),
+          marginBottom: hp(0.75),
+          width: '85%',
+        }}
+      />
+      <View
+        style={{
+          height: hp(1.5),
+          backgroundColor: '#E8E8E8',
+          borderRadius: scale(3),
+          width: '75%',
+        }}
+      />
     </View>
   </View>
 ));
@@ -176,9 +193,32 @@ const SkeletonRecommendCard = memo(() => (
       <View style={[styles.recommendImage, { backgroundColor: '#D3D3D3' }]} />
     </View>
     <View style={styles.recommendBody}>
-      <View style={{ height: hp(1.75), backgroundColor: '#E8E8E8', borderRadius: scale(3), marginBottom: hp(0.75), width: '70%' }} />
-      <View style={{ height: hp(1.375), backgroundColor: '#E8E8E8', borderRadius: scale(2), marginBottom: hp(0.5), width: '85%' }} />
-      <View style={{ height: hp(1.375), backgroundColor: '#E8E8E8', borderRadius: scale(2), width: '75%' }} />
+      <View
+        style={{
+          height: hp(1.75),
+          backgroundColor: '#E8E8E8',
+          borderRadius: scale(3),
+          marginBottom: hp(0.75),
+          width: '70%',
+        }}
+      />
+      <View
+        style={{
+          height: hp(1.375),
+          backgroundColor: '#E8E8E8',
+          borderRadius: scale(2),
+          marginBottom: hp(0.5),
+          width: '85%',
+        }}
+      />
+      <View
+        style={{
+          height: hp(1.375),
+          backgroundColor: '#E8E8E8',
+          borderRadius: scale(2),
+          width: '75%',
+        }}
+      />
     </View>
   </View>
 ));
@@ -187,10 +227,17 @@ const SkeletonRecommendCard = memo(() => (
 const SkeletonFoodItem = memo(() => (
   <View style={styles.foodItem}>
     <View style={[styles.foodImage, { backgroundColor: '#E8E8E8' }]} />
-    <View style={{ height: hp(1.5), backgroundColor: '#E8E8E8', borderRadius: scale(3), marginTop: hp(1), width: '80%' }} />
+    <View
+      style={{
+        height: hp(1.5),
+        backgroundColor: '#E8E8E8',
+        borderRadius: scale(3),
+        marginTop: hp(1),
+        width: '80%',
+      }}
+    />
   </View>
 ));
-
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -214,6 +261,7 @@ export default function HomeScreen() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [addressLabel, setAddressLabel] = useState('Home');
   const [addressLine, setAddressLine] = useState('loading address...');
+  const [userData, setUserData] = useState(null);
   const { cartCount } = useContext(CartContext);
   const { isFavourite, toggleFavourite } = useContext(FavouritesContext);
 
@@ -225,11 +273,12 @@ export default function HomeScreen() {
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           {
             title: 'Location Permission',
-            message: 'NewWasseny needs access to your location to show nearby restaurants and accurate delivery times',
+            message:
+              'NewWasseny needs access to your location to show nearby restaurants and accurate delivery times',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Deny',
             buttonPositive: 'Allow',
-          }
+          },
         );
         console.log('Permission result:', granted);
         return granted === PermissionsAndroid.RESULTS.GRANTED;
@@ -238,7 +287,8 @@ export default function HomeScreen() {
         return false;
       }
     }
-    // iOS requests permissions when app first runs
+
+    console.log('iOS: Permission dialog will be triggered on location request');
     return true;
   };
 
@@ -260,10 +310,15 @@ export default function HomeScreen() {
         },
         error => {
           clearTimeout(timeout);
-          console.warn('Geolocation error code:', error.code, 'message:', error.message);
+          console.warn(
+            'Geolocation error code:',
+            error.code,
+            'message:',
+            error.message,
+          );
           reject(error);
         },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 },
       );
     });
   };
@@ -275,7 +330,7 @@ export default function HomeScreen() {
         setIsLoadingRestaurants(true);
         setPageNum(0);
       }
-      
+
       // Start location request in background (non-blocking)
       const locationPromise = (async () => {
         try {
@@ -287,7 +342,9 @@ export default function HomeScreen() {
             return location;
           }
         } catch (err) {
-          console.warn('Location error handled gracefully, continuing without location');
+          console.warn(
+            'Location error handled gracefully, continuing without location',
+          );
         }
         return null;
       })();
@@ -316,7 +373,7 @@ export default function HomeScreen() {
 
       setHomeData(data);
       processHomeData(data);
-      
+
       // Get location and re-fetch if available (non-blocking)
       locationPromise.then(loc => {
         if (loc) {
@@ -347,14 +404,16 @@ export default function HomeScreen() {
   };
 
   // Process home data and update state
-  const processHomeData = (data) => {
+  const processHomeData = data => {
     // Set categories from API
     if (data?.categories && Array.isArray(data.categories)) {
       const formattedCategories = data.categories.map(cat => ({
         id: cat._id || cat.id,
         name: cat.name,
         title: cat.name,
-        image: cat.image ? { uri: cat.image } : require('../../assets/images/Food.png'),
+        image: cat.image
+          ? { uri: cat.image }
+          : require('../../assets/images/Food.png'),
       }));
       setCategories(formattedCategories);
       setIsLoadingCategories(false);
@@ -376,16 +435,16 @@ export default function HomeScreen() {
     // Set sections and restaurants
     if (data?.sections) {
       setSections(data.sections);
-      
+
       const allRestaurants_raw = [
         ...(data.sections.recentRestaurants || []),
         ...(data.sections.exploreRestaurants || []),
         ...(data.sections.popularRestaurants || []),
       ];
-      
+
       // Remove duplicates
       const uniqueRestaurants = Array.from(
-        new Map(allRestaurants_raw.map(r => [r._id || r.id, r])).values()
+        new Map(allRestaurants_raw.map(r => [r._id || r.id, r])).values(),
       );
 
       const mapped = uniqueRestaurants.map(item => ({
@@ -395,15 +454,19 @@ export default function HomeScreen() {
         cuisines: item.cuisine || [],
         image: item.image || '',
         bannerImage: item.bannerImage || '',
-        coverImage: item.bannerImage || item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+        coverImage:
+          item.bannerImage ||
+          item.image ||
+          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
         ratingAverage: getRatingAverage(item),
         ratingCount: getRatingCount(item),
         deliveryTime: item.deliveryTime
           ? `${item.deliveryTime} mins`
           : '30 - 40 mins',
-        distance: item.distanceKm && hasLocationPermission
-          ? `${item.distanceKm.toFixed(1)} km`
-          : undefined,
+        distance:
+          item.distanceKm && hasLocationPermission
+            ? `${item.distanceKm.toFixed(1)} km`
+            : undefined,
         isOpen: item.isActive === true && item.isTemporarilyClosed !== true,
         bestSeller: item.bestSeller || 'Best Seller',
       }));
@@ -417,18 +480,23 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
-  // Fetch user address
+  // Fetch user address and profile data
   useEffect(() => {
-    const fetchUserAddress = async () => {
+    const fetchUserData = async () => {
       try {
         const response = await apiClient.get(USER_ROUTES.profile);
         const user = response?.data?.user || response?.data;
-        
+
+        // Set user data including profile picture
+        setUserData(user);
+
         // Extract address from savedAddresses array
         if (user?.savedAddresses && user.savedAddresses.length > 0) {
           // First, look for the default address (isDefault: true)
-          const defaultAddress = user.savedAddresses.find(addr => addr.isDefault === true);
-          
+          const defaultAddress = user.savedAddresses.find(
+            addr => addr.isDefault === true,
+          );
+
           if (defaultAddress) {
             setAddressLabel(defaultAddress.label);
             setAddressLine(defaultAddress.addressLine);
@@ -440,12 +508,12 @@ export default function HomeScreen() {
           }
         }
       } catch (error) {
-        console.warn('Error fetching user address:', error);
+        console.warn('Error fetching user data:', error);
         // Fallback to default address kept as is
       }
     };
-    
-    fetchUserAddress();
+
+    fetchUserData();
   }, []);
 
   // Load more restaurants when user scrolls
@@ -456,16 +524,16 @@ export default function HomeScreen() {
       const endIndex = startIndex + itemsPerPage;
       setRestaurants([
         ...restaurants,
-        ...allRestaurants.slice(startIndex, endIndex)
+        ...allRestaurants.slice(startIndex, endIndex),
       ]);
       setPageNum(nextPage);
     }
   };
 
   // Toggle favorite function with proper restaurant data
-  const handleToggleFavorite = (restaurant) => {
+  const handleToggleFavorite = restaurant => {
     if (!restaurant) return;
-    
+
     toggleFavourite?.({
       id: restaurant.id || restaurant._id,
       restaurantId: restaurant.id || restaurant._id,
@@ -482,45 +550,55 @@ export default function HomeScreen() {
       : require('../../assets/images/Food.png');
 
   // Build promo cards from API banners or fall back to restaurants
-  const promoCards = banners.length > 0
-    ? banners.map(banner => {
-        const bannerImage = (banner?.image || '').trim();
-        const isDataUri = bannerImage.startsWith('data:image');
-        const isHttp = bannerImage.startsWith('http://') || bannerImage.startsWith('https://');
-        const isRelativePath = bannerImage.startsWith('/');
-        const looksLikeBase64 = !isDataUri && !isHttp && !isRelativePath && bannerImage.length > 200;
+  const promoCards =
+    banners.length > 0
+      ? banners.map(banner => {
+          const bannerImage = (banner?.image || '').trim();
+          const isDataUri = bannerImage.startsWith('data:image');
+          const isHttp =
+            bannerImage.startsWith('http://') ||
+            bannerImage.startsWith('https://');
+          const isRelativePath = bannerImage.startsWith('/');
+          const looksLikeBase64 =
+            !isDataUri &&
+            !isHttp &&
+            !isRelativePath &&
+            bannerImage.length > 200;
 
-        const bannerUri = isDataUri
-          ? bannerImage
-          : isHttp
-          ? bannerImage
-          : looksLikeBase64
-          ? `data:image/jpeg;base64,${bannerImage}`
-          : `${apiClient.defaults.baseURL}${bannerImage}`;
+          const bannerUri = isDataUri
+            ? bannerImage
+            : isHttp
+            ? bannerImage
+            : looksLikeBase64
+            ? `data:image/jpeg;base64,${bannerImage}`
+            : `${apiClient.defaults.baseURL}${bannerImage}`;
 
-        return {
-          id: banner._id,
-          image: bannerImage ? { uri: bannerUri } : promoImageSource,
-          title: banner.title || 'Seasonal favorites are here',
+          return {
+            id: banner._id,
+            image: bannerImage ? { uri: bannerUri } : promoImageSource,
+            title: banner.title || 'Seasonal favorites are here',
+            subtitle: 'try something new today !',
+            cta: 'Explore Now',
+            banner: banner,
+          };
+        })
+      : Array.isArray(restaurants) && restaurants.length
+      ? restaurants.slice(0, 6).map(r => ({
+          id: String(r.id ?? r.name),
+          image:
+            r?.bannerImage && r.bannerImage.trim()
+              ? { uri: r.bannerImage }
+              : promoImageSource,
+          title: 'Seasonal favorites are here',
           subtitle: 'try something new today !',
           cta: 'Explore Now',
-          banner: banner,
-        };
-      })
-    : Array.isArray(restaurants) && restaurants.length
-    ? restaurants.slice(0, 6).map(r => ({
-        id: String(r.id ?? r.name),
-        image: (r?.bannerImage && r.bannerImage.trim()) ? { uri: r.bannerImage } : promoImageSource,
-        title: 'Seasonal favorites are here',
-        subtitle: 'try something new today !',
-        cta: 'Explore Now',
-        restaurant: r,
-      }))
-    : [];
+          restaurant: r,
+        }))
+      : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* <StatusBar hidden /> */}
+      {/* <StatusBar hidden /> */}
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* HEADER + SEARCH + TABS */}
@@ -532,7 +610,10 @@ export default function HomeScreen() {
           >
             <View style={styles.headerGlass}>
               <View
-                style={[styles.headerRow, isSmallDevice && styles.headerRowCompact]}
+                style={[
+                  styles.headerRow,
+                  isSmallDevice && styles.headerRowCompact,
+                ]}
               >
                 <View style={styles.headerLeft}>
                   <MapPin size={18} color="#111111" />
@@ -558,7 +639,11 @@ export default function HomeScreen() {
                     }}
                   >
                     <Image
-                      source={require('../../assets/icons/user.png')}
+                      source={
+                        userData?.profilePic
+                          ? { uri: userData.profilePic }
+                          : require('../../assets/icons/user.png')
+                      }
                       style={styles.avatarImg}
                     />
                   </TouchableOpacity>
@@ -582,12 +667,7 @@ export default function HomeScreen() {
                     style={styles.actionBtn}
                     activeOpacity={0.85}
                     onPress={() => {
-                      const tabNav = navigation.getParent?.();
-                      if (tabNav?.navigate) {
-                        tabNav.navigate('Profile', {
-                          screen: 'NotificationSettings',
-                        });
-                      }
+                      navigation.navigate('NotificationSettings');
                     }}
                   >
                     <Bell size={18} color="#FFFFFF" />
@@ -596,7 +676,10 @@ export default function HomeScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.searchBox, isSmallDevice && styles.searchBoxCompact]}
+                style={[
+                  styles.searchBox,
+                  isSmallDevice && styles.searchBoxCompact,
+                ]}
                 activeOpacity={0.9}
                 onPress={() => {
                   const tabNav = navigation.getParent?.();
@@ -627,15 +710,24 @@ export default function HomeScreen() {
                   return (
                     <TouchableOpacity
                       key={label}
-                      style={[styles.tabItem, isSmallDevice && styles.tabItemCompact]}
+                      style={[
+                        styles.tabItem,
+                        isSmallDevice && styles.tabItemCompact,
+                      ]}
                       activeOpacity={0.85}
                       onPress={() => setActiveTab(label)}
                     >
                       <Text
                         style={
                           isActive
-                            ? [styles.tabTextActive, isSmallDevice && styles.tabTextCompact]
-                            : [styles.tabText, isSmallDevice && styles.tabTextCompact]
+                            ? [
+                                styles.tabTextActive,
+                                isSmallDevice && styles.tabTextCompact,
+                              ]
+                            : [
+                                styles.tabText,
+                                isSmallDevice && styles.tabTextCompact,
+                              ]
                         }
                       >
                         {label}
@@ -670,7 +762,7 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.foodList}
                   renderItem={({ item }) => (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.foodItem}
                       activeOpacity={0.85}
                       onPress={() => {
@@ -678,17 +770,17 @@ export default function HomeScreen() {
                         if (tabNav?.navigate) {
                           tabNav.navigate('Search', {
                             screen: 'SearchHome',
-                            params: { 
+                            params: {
                               autoFocus: true,
                               category: item.name,
-                              initialQuery: item.name 
+                              initialQuery: item.name,
                             },
                           });
                         } else {
                           navigation.navigate('SearchHome', {
                             autoFocus: true,
                             category: item.name,
-                            initialQuery: item.name 
+                            initialQuery: item.name,
                           });
                         }
                       }}
@@ -763,17 +855,25 @@ export default function HomeScreen() {
                     (() => {
                       const cuisines = Array.isArray(item?.cuisine)
                         ? item.cuisine
-                        : (Array.isArray(item?.cuisines) ? item.cuisines : []);
-                      const cuisineText = cuisines.length > 0
-                        ? cuisines.join(', ')
-                        : 'Pizza, Italian, Fast Food';
+                        : Array.isArray(item?.cuisines)
+                        ? item.cuisines
+                        : [];
+                      const cuisineText =
+                        cuisines.length > 0
+                          ? cuisines.join(', ')
+                          : 'Pizza, Italian, Fast Food';
                       const distanceText = item?.distance || null;
-                      const timeText = item?.deliveryTime ? `${item.deliveryTime} minutes` : '20 - 30 minutes';
+                      const timeText = item?.deliveryTime
+                        ? `${item.deliveryTime} minutes`
+                        : '20 - 30 minutes';
                       const ratingValue = getRatingAverage(item);
                       const ratingCount = getRatingCount(item);
                       const bestSellerText =
                         item?.bestSeller || 'Popular choice';
-                      const isFavoriteItem = isFavourite?.(item.id, 'restaurant');
+                      const isFavoriteItem = isFavourite?.(
+                        item.id,
+                        'restaurant',
+                      );
 
                       return (
                         <TouchableOpacity
@@ -786,7 +886,11 @@ export default function HomeScreen() {
                         >
                           <View style={styles.recommendImageWrap}>
                             <Image
-                              source={(item.bannerImage && item.bannerImage.trim()) ? { uri: item.bannerImage } : require('../../assets/images/Food.png')}
+                              source={
+                                item.bannerImage && item.bannerImage.trim()
+                                  ? { uri: item.bannerImage }
+                                  : require('../../assets/images/Food.png')
+                              }
                               style={styles.recommendImage}
                             />
                             <TouchableOpacity
@@ -822,7 +926,11 @@ export default function HomeScreen() {
                                 {item.name}
                               </Text>
                               <View style={styles.ratingRow}>
-                                <Star size={14} color="#F5A623" fill="#F5A623" />
+                                <Star
+                                  size={14}
+                                  color="#F5A623"
+                                  fill="#F5A623"
+                                />
                                 <Text style={styles.ratingValue}>
                                   {ratingValue}
                                 </Text>
@@ -831,14 +939,19 @@ export default function HomeScreen() {
                                 </Text>
                               </View>
                             </View>
-                            <Text style={styles.recommendMeta} numberOfLines={1}>
+                            <Text
+                              style={styles.recommendMeta}
+                              numberOfLines={1}
+                            >
                               {cuisineText}
                             </Text>
                             <Text
                               style={styles.recommendSubMeta}
                               numberOfLines={1}
                             >
-                              {distanceText ? `${distanceText} away | ${timeText}` : timeText}
+                              {distanceText
+                                ? `${distanceText} away | ${timeText}`
+                                : timeText}
                             </Text>
                             <View style={styles.bestSellerPill}>
                               <Text
@@ -880,38 +993,61 @@ export default function HomeScreen() {
                     scrollEnabled={false}
                     renderItem={() => <SkeletonCard />}
                   />
-                  <View style={{ justifyContent: 'center', alignItems: 'center', paddingVertical: hp(1.5) }}>
+                  <View
+                    style={{
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      paddingVertical: hp(1.5),
+                    }}
+                  >
                     <ActivityIndicator size="small" color="#ed1c24" />
-                    <Text style={{ marginTop: hp(1), color: '#8E8E93', fontSize: FONT.xs }}>
+                    <Text
+                      style={{
+                        marginTop: hp(1),
+                        color: '#8E8E93',
+                        fontSize: FONT.xs,
+                      }}
+                    >
                       Loading restaurants...
                     </Text>
                   </View>
                 </View>
               ) : restaurants.length > 0 ? (
-                <View style={{ marginBottom: hp(5) }}>
-                  <FlatList
-                    data={restaurants}
-                    keyExtractor={item => item.id}
-                    scrollEnabled={false}
-                    renderItem={({ item }) => (
-                      <RestaurantListCard
-                        item={item}
-                        isFavorite={isFavourite?.(item.id, 'restaurant')}
-                        onPress={() =>
-                          navigation.navigate('RestaurantDetail', {
-                            restaurant: item,
-                          })
-                        }
-                        onFavoritePress={() => handleToggleFavorite(item)}
-                      />
-                    )}
-                    onEndReached={loadMoreRestaurants}
-                    onEndReachedThreshold={0.5}
-                  />
-                </View>
+                <FlatList
+                  data={restaurants}
+                  keyExtractor={item => item.id}
+                  contentContainerStyle={{ paddingBottom: hp(8) }}
+                  renderItem={({ item }) => (
+                    <RestaurantListCard
+                      item={item}
+                      isFavorite={isFavourite?.(item.id, 'restaurant')}
+                      onPress={() =>
+                        navigation.navigate('RestaurantDetail', {
+                          restaurant: item,
+                        })
+                      }
+                      onFavoritePress={() => handleToggleFavorite(item)}
+                    />
+                  )}
+                  onEndReached={loadMoreRestaurants}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={<View style={{ height: hp(2) }} />}
+                />
               ) : (
-                <View style={{ height: hp(25), justifyContent: 'center', alignItems: 'center' }}>
-                  <Text style={{ color: '#8E8E93', fontSize: FONT.sm, marginBottom: hp(1.5) }}>
+                <View
+                  style={{
+                    height: hp(25),
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#8E8E93',
+                      fontSize: FONT.sm,
+                      marginBottom: hp(1.5),
+                    }}
+                  >
                     No restaurants available
                   </Text>
                   <TouchableOpacity
@@ -954,7 +1090,7 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#ed1c24',
-    overflow:'hidden'
+    overflow: 'hidden',
   },
 
   container: {
@@ -1044,8 +1180,8 @@ const styles = StyleSheet.create({
 
   avatarRing: {
     width: wp(11.11),
-    height: hp(5),
-    borderRadius: scale(20),
+    height: wp(11.11),
+    borderRadius: scale(56),
     borderWidth: scale(2),
     borderColor: '#ed1c24',
     alignItems: 'center',
@@ -1055,15 +1191,15 @@ const styles = StyleSheet.create({
 
   avatarImg: {
     width: wp(9.44),
-    height: hp(4.25),
-    borderRadius: scale(17),
+    height: wp(9.44),
+    borderRadius: scale(47),
     resizeMode: 'cover',
   },
 
   actionBtn: {
-    width: wp(12.22),
-    height: hp(5.5),
-    borderRadius: scale(22),
+    width: wp(11.11),
+    height: wp(11.11),
+    borderRadius: scale(56),
     backgroundColor: '#ed1c24',
     alignItems: 'center',
     justifyContent: 'center',

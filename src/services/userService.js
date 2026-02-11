@@ -26,3 +26,13 @@ export const updateUserProfile = async (payload) => {
   const response = await apiClient.put(USER_ROUTES.updateProfile, payload);
   return response.data;
 };
+
+export const verifyProfileOtp = async (otp) => {
+  const response = await apiClient.post(USER_ROUTES.verifyProfileOTP, { otp });
+  return response.data;
+};
+
+export const resendProfileOtp = async () => {
+  const response = await apiClient.post(USER_ROUTES.resendProfileOTP);
+  return response.data;
+};

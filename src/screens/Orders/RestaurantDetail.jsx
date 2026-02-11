@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Pressable,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -292,17 +293,34 @@ export default function RestaurantDetail() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredItems = useMemo(() => {
+    let items = [];
+    
+    // Get items based on active category
     if (!activeCategory || activeCategory === 'all') {
       const allMenu = restaurant.menu?.find(m => m.id === 'all');
-      return allMenu?.items || restaurant.popularItems || [];
+      items = allMenu?.items || restaurant.popularItems || [];
+    } else {
+      const activeKey = String(activeCategory).trim();
+      const categoryMenu = restaurant.menu?.find(m => String(m.id || '').trim() === activeKey);
+      items = categoryMenu?.items || [];
     }
 
-    const activeKey = String(activeCategory).trim();
-    const categoryMenu = restaurant.menu?.find(m => String(m.id || '').trim() === activeKey);
-    return categoryMenu?.items || [];
-  }, [activeCategory, restaurant]);
+    // Filter by search query
+    if (searchQuery.trim().length > 0) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter(item => {
+        const name = (item?.name || '').toLowerCase();
+        const description = (item?.description || '').toLowerCase();
+        const subtitle = (item?.subtitle || '').toLowerCase();
+        return name.includes(query) || description.includes(query) || subtitle.includes(query);
+      });
+    }
+
+    return items;
+  }, [activeCategory, searchQuery, restaurant]);
 
   const openDrawer = item => {
     setSelectedItem(item);
@@ -423,9 +441,9 @@ export default function RestaurantDetail() {
               </Pressable>
 
             </View>
-            <View style={styles.headerIcon}>
+            {/* <View style={styles.headerIcon}>
               <MoreVertical size={18} color="#000" />
-            </View>
+            </View> */}
           </View>
 
           {/* Rating pill */}
@@ -474,16 +492,22 @@ export default function RestaurantDetail() {
                 Min order - {minOrderText}
               </Text>
             </View>
-            <TouchableOpacity style={styles.changeBtn} activeOpacity={0.9}>
+            {/* <TouchableOpacity style={styles.changeBtn} activeOpacity={0.9}>
               <Text style={styles.changeText}>Change</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
 
         {/* ===== SEARCH ===== */}
         <View style={styles.searchBox}>
           <Search size={18} color="#9AA0A6" />
-          <Text style={styles.searchPlaceholder}>Search Dish Name....</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search Dish Name...."
+            placeholderTextColor="#9AA0A6"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
 
         {/* ===== CATEGORIES ===== */}
@@ -913,6 +937,14 @@ const styles = StyleSheet.create({
     color: '#9AA0A6',
      fontSize: FONT_SIZES.sm,
     fontWeight: '600',
+  },
+
+  searchInput: {
+    flex: 1,
+    color: '#111',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    paddingVertical: 0,
   },
 
   catRow: {

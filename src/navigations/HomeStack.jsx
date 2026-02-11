@@ -4,6 +4,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomePage from '../screens/Home/HomePage.jsx';
 import RestaurantDetail from '../screens/Orders/RestaurantDetail';
 import CartScreen from '../screens/Cart';
+import Favourite from '../screens/Favourite';
+import ReviewOrderScreen from '../screens/ReviewOrderScreen';
+import OrderDetailsScreen from '../screens/Orders/OrderDetailsScreen';
+import NotificationSettings from '../screens/Profile/NotificationSettings';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,6 +19,10 @@ export default function HomeStack() {
       <Stack.Screen name="RestaurantDetail" component={RestaurantDetail} />
 
       <Stack.Screen name="Cart" component={CartScreen} />
+      <Stack.Screen name="Favourite" component={Favourite} />
+      <Stack.Screen name="ReviewOrderScreen" component={ReviewOrderScreen} />
+      <Stack.Screen name="OrderDetailsScreen" component={OrderDetailsScreen} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettings} />
     </Stack.Navigator>
   );
 }

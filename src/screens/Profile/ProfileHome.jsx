@@ -151,7 +151,7 @@ function ProfileHome() {
           <TouchableOpacity
             style={styles.quickActionCard}
             activeOpacity={0.8}
-            onPress={() => rootNavigation.navigate('Favourite')}
+            onPress={() => navigation.navigate('Favourite')}
           >
             <View style={styles.iconCircle}>
               <Heart size={20} color="#E41C26" />

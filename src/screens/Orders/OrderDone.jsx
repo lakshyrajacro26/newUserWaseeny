@@ -21,6 +21,7 @@ import { wp, hp } from '../../utils/responsive';
 import { scale } from '../../utils/scale';
 import { FONT_SIZES } from '../../theme/typography';
 import { SPACING } from '../../theme/spacing';
+import RatingDrawerModal from '../../components/RestaurantRatingDrawer'
 
 const FALLBACK_HEADER = require('../../assets/images/Noodle.png');
 
@@ -63,6 +64,7 @@ export default function OrderDetailsScreen() {
   const route = useRoute();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [ratingVisible, setRatingVisible] = useState(false);
 
   const orderId = route?.params?.orderId;
 
@@ -77,7 +79,9 @@ export default function OrderDetailsScreen() {
         setLoading(true);
         const url = ORDER_ROUTES.getOrderById.replace(':id', orderId);
         const response = await apiClient.get(url);
-        setOrder(response?.data?.order || response?.data?.data || response?.data);
+        setOrder(
+          response?.data?.order || response?.data?.data || response?.data,
+        );
       } catch (error) {
         console.error('Error fetching order:', error);
         setOrder(null);
@@ -93,13 +97,17 @@ export default function OrderDetailsScreen() {
   const first = items[0];
 
   const restaurantName =
-    (typeof order?.restaurant?.name === 'object' ? order?.restaurant?.name?.en : order?.restaurant?.name) ||
+    (typeof order?.restaurant?.name === 'object'
+      ? order?.restaurant?.name?.en
+      : order?.restaurant?.name) ||
     order?.restaurantName ||
     first?.restaurant?.name ||
     'Restaurant';
 
   const restaurantTags =
-    (Array.isArray(order?.restaurant?.cuisine) ? order?.restaurant?.cuisine?.join(', ') : '') ||
+    (Array.isArray(order?.restaurant?.cuisine)
+      ? order?.restaurant?.cuisine?.join(', ')
+      : '') ||
     order?.restaurantTags ||
     'Italian, Fine Dining';
 
@@ -119,7 +127,12 @@ export default function OrderDetailsScreen() {
     smallCartFee: 0,
     discount: toNumber(order?.discount, 0),
     tip: toNumber(order?.tip, 0),
-    totalBeforeTip: toNumber(order?.itemTotal, 0) + toNumber(order?.tax, 0) + toNumber(order?.deliveryFee, 0) + toNumber(order?.platformFee, 0) - toNumber(order?.discount, 0),
+    totalBeforeTip:
+      toNumber(order?.itemTotal, 0) +
+      toNumber(order?.tax, 0) +
+      toNumber(order?.deliveryFee, 0) +
+      toNumber(order?.platformFee, 0) -
+      toNumber(order?.discount, 0),
     grandTotal: toNumber(order?.totalAmount, 0),
   };
 
@@ -149,231 +162,288 @@ export default function OrderDetailsScreen() {
         </View>
       ) : (
         <>
-      {/* HEADER IMAGE - EXACT like image */}
-      <View style={styles.imageWrapper}>
-        <ImageBackground
-          source={imgSource(restaurantImage)}
-          style={styles.headerImage}
-        >
-          <LinearGradient
-            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#FFFFFF']}
-            locations={[0.35, 0.75, 1]}
-            style={styles.headerFade}
-          />
-
-          <View style={styles.headerTopBar}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              activeOpacity={0.85}
-              onPress={() => navigation.goBack()}
+          {/* HEADER IMAGE - EXACT like image */}
+          <View style={styles.imageWrapper}>
+            <ImageBackground
+              source={imgSource(restaurantImage)}
+              style={styles.headerImage}
             >
-              <ArrowLeft size={20} color="#111" />
-            </TouchableOpacity>
+              <LinearGradient
+                colors={[
+                  'rgba(255,255,255,0)',
+                  'rgba(255,255,255,0.9)',
+                  '#FFFFFF',
+                ]}
+                locations={[0.35, 0.75, 1]}
+                style={styles.headerFade}
+              />
 
-            {/* <TouchableOpacity style={styles.moreBtn}>
+              <View style={styles.headerTopBar}>
+                <TouchableOpacity
+                  style={styles.backBtn}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    navigation.navigate('MainTabs', {
+                      screen: 'Home',
+                      params: { screen: 'HomePage' },
+                    })
+                  }
+                >
+                  <ArrowLeft size={20} color="#111" />
+                </TouchableOpacity>
+
+                {/* <TouchableOpacity style={styles.moreBtn}>
               <MoreVertical size={20} color="#111" />
             </TouchableOpacity> */}
+              </View>
+
+              {/* Restaurant info - EXACT position like image */}
+              <View style={styles.imageContent}>
+                <View style={styles.headerInfoRow}>
+                  <View style={styles.headerTextBlock}>
+                    <Text style={styles.restaurantImageName}>
+                      {restaurantName}
+                    </Text>
+                    <Text style={styles.restaurantImageTags}>
+                      {restaurantTags}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.menuButtonContainer}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        if (order?.restaurant?._id) {
+                          navigation.navigate('MainTabs', {
+                            screen: 'Home',
+                            params: {
+                              screen: 'RestaurantDetail',
+                              params: { restaurant: order.restaurant },
+                            },
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={styles.menuButtonText}>Menu &gt;</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.callButton}
+                    activeOpacity={0.85}
+                  >
+                    <Phone size={14} color="#FFFFFF" />
+                    <Text style={styles.callButtonText}>Call Now</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ImageBackground>
           </View>
 
-          {/* Restaurant info - EXACT position like image */}
-          <View style={styles.imageContent}>
-            <View style={styles.headerInfoRow}>
-              <View style={styles.headerTextBlock}>
-                <Text style={styles.restaurantImageName}>{restaurantName}</Text>
-                <Text style={styles.restaurantImageTags}>{restaurantTags}</Text>
-                <TouchableOpacity 
-                  style={styles.menuButtonContainer}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (order?.restaurant?._id) {
-                      navigation.navigate('RestaurantDetail', { restaurant: order.restaurant });
-                    }
-                  }}
-                >
-                  <Text style={styles.menuButtonText}>Menu &gt;</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={styles.callButton} activeOpacity={0.85}>
-                <Phone size={14} color="#FFFFFF" />
-                <Text style={styles.callButtonText}>Call Now</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* ORDER STATUS BANNER */}
+            <View style={styles.statusSection}>
+              <Text style={styles.statusText}>
+                “Enjoy your meal! Don’t forget to rate your order.”
+              </Text>
+
+              <TouchableOpacity
+                style={styles.rateButton}
+                activeOpacity={0.85}
+                onPress={() => setRatingVisible(true)}
+              >
+                <Text style={styles.rateButtonText}>Rate Now</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </ImageBackground>
-      </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* ORDER STATUS BANNER */}
-        <View style={styles.statusSection}>
-          <Text style={styles.statusText}>🔥 “{statusLine}”</Text>
-        </View>
+            {/* ITEMS SECTION */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Items ({items.length})</Text>
 
-        {/* ITEMS SECTION */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+              {items.map(item => {
+                const lineTotal =
+                  toNumber(item?.price, 0) *
+                  toNumber(item?.quantity ?? item?.qty, 1);
+                const itemImage = item?.product?.image || item?.image;
+                const subLine = formatOptionsLine(item) || 'Regular';
 
-          {items.map(item => {
-            const lineTotal =
-              toNumber(item?.price, 0) *
-                toNumber(item?.quantity ?? item?.qty, 1);
-            const itemImage = item?.product?.image || item?.image;
-            const subLine = formatOptionsLine(item) || 'Regular';
-
-            return (
-              <View style={styles.itemRow} key={item?._id ?? item?.name}>
-                <Image
-                  source={imgSource(itemImage)}
-                  style={styles.itemThumb}
-                />
-                <View style={styles.itemContent}>
-                  <Text style={styles.itemName}>{item?.name || 'Item'}</Text>
-                  <Text style={styles.itemSub}>{subLine}</Text>
-                </View>
-                <Text style={styles.price}>
-                  ₹ {toNumber(lineTotal, 0).toFixed(2)}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* BILL DETAILS SECTION */}
-        <View style={styles.billSection}>
-          <Text style={styles.sectionTitle}>Bill Details</Text>
-
-          <View style={styles.billCard}>
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Subtotal</Text>
-              <Text style={styles.billValue}>
-                ₹ {totals.subtotal.toFixed(2)}
-              </Text>
+                return (
+                  <View style={styles.itemRow} key={item?._id ?? item?.name}>
+                    <Image
+                      source={imgSource(itemImage)}
+                      style={styles.itemThumb}
+                    />
+                    <View style={styles.itemContent}>
+                      <Text style={styles.itemName}>
+                        {item?.name || 'Item'}
+                      </Text>
+                      <Text style={styles.itemSub}>{subLine}</Text>
+                    </View>
+                    <Text style={styles.price}>
+                      ₹ {toNumber(lineTotal, 0).toFixed(2)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
 
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Delivery Fee</Text>
-              {totals.delivery === 0 ? (
-                <Text style={styles.deliveryFree}>Free</Text>
-              ) : (
-                <Text style={styles.billValue}>
-                  ₹ {totals.delivery.toFixed(2)}
-                </Text>
+            {/* BILL DETAILS SECTION */}
+            <View style={styles.billSection}>
+              <Text style={styles.sectionTitle}>Bill Details</Text>
+
+              <View style={styles.billCard}>
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabel}>Subtotal</Text>
+                  <Text style={styles.billValue}>
+                    ₹ {totals.subtotal.toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabel}>Delivery Fee</Text>
+                  {totals.delivery === 0 ? (
+                    <Text style={styles.deliveryFree}>Free</Text>
+                  ) : (
+                    <Text style={styles.billValue}>
+                      ₹ {totals.delivery.toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+
+                {totals.tax > 0 && (
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Tax</Text>
+                    <Text style={styles.billValue}>
+                      ₹ {totals.tax.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+
+                {totals.packaging > 0 && (
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Packaging</Text>
+                    <Text style={styles.billValue}>
+                      ₹ {totals.packaging.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabel}>Service Fee</Text>
+                  <Text style={styles.billValue}>
+                    ₹ {totals.serviceFee.toFixed(2)}
+                  </Text>
+                </View>
+
+                {totals.smallCartFee > 0 && (
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Small Cart Fee</Text>
+                    <Text style={styles.billValue}>
+                      ₹ {totals.smallCartFee.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+
+                {totals.discount > 0 && (
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Offer Applied</Text>
+                    <Text style={styles.couponValue}>
+                      -₹ {totals.discount.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.billDivider} />
+
+                {totals.tip > 0 && (
+                  <View style={styles.billRow}>
+                    <Text style={styles.billLabel}>Tip for Rider</Text>
+                    <Text style={styles.tipValue}>
+                      ₹ {totals.tip.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabel}>Grand Total</Text>
+                  <Text style={styles.grandTotal}>
+                    ₹ {totals.grandTotal.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+
+              {totals.discount > 0 && (
+                <View style={styles.savingsBox}>
+                  <Text style={styles.savingsText}>
+                    Hurry! You saved ₹ {totals.discount.toFixed(2)} on this
+                    order.
+                  </Text>
+                </View>
               )}
             </View>
 
-            {totals.tax > 0 && (
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Tax</Text>
-                <Text style={styles.billValue}>
-                  ₹ {totals.tax.toFixed(2)}
+            {/* ADDRESS + ORDER INFO CARD */}
+            <View style={styles.infoCard}>
+              <View style={styles.infoBlock}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.infoTitle}>Delivering Address</Text>
+                  <TouchableOpacity>
+                    <Text style={styles.trackLink}>Track Order</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.address}>
+                  {order?.deliveryAddress?.addressLine ||
+                    order?.address?.addressLine ||
+                    order?.address ||
+                    'Address not available'}
                 </Text>
               </View>
-            )}
 
-            {totals.packaging > 0 && (
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Packaging</Text>
-                <Text style={styles.billValue}>
-                  ₹ {totals.packaging.toFixed(2)}
+              <View style={styles.divider} />
+
+              <View style={styles.infoBlockCompact}>
+                <Text style={styles.infoLabel}>Order ID</Text>
+                <Text style={styles.infoValue}>
+                  #{order?.id || order?._id || 'N/A'}
                 </Text>
               </View>
-            )}
 
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Service Fee</Text>
-              <Text style={styles.billValue}>
-                ₹ {totals.serviceFee.toFixed(2)}
-              </Text>
+              <View style={styles.divider} />
+
+              <View style={styles.infoBlockCompact}>
+                <Text style={styles.infoLabel}>Payment Method</Text>
+                <Text style={styles.infoValue}>
+                  {order?.paymentMethod === 'cod'
+                    ? 'Cash on Delivery'
+                    : order?.paymentMethod === 'card'
+                    ? 'Credit/Debit Card'
+                    : order?.paymentMethod === 'wallet'
+                    ? 'Wallet'
+                    : order?.paymentMethod || 'Not specified'}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.infoBlockCompact}>
+                <Text style={styles.infoLabel}>Payment Time & Date</Text>
+                <Text style={styles.infoValue}>
+                  {formatDateTime(order?.createdAt || order?.paidAt)}
+                </Text>
+              </View>
             </View>
-
-            {totals.smallCartFee > 0 && (
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Small Cart Fee</Text>
-                <Text style={styles.billValue}>
-                  ₹ {totals.smallCartFee.toFixed(2)}
-                </Text>
-              </View>
-            )}
-
-            {totals.discount > 0 && (
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Offer Applied</Text>
-                <Text style={styles.couponValue}>
-                  -₹ {totals.discount.toFixed(2)}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.billDivider} />
-
-            {totals.tip > 0 && (
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Tip for Rider</Text>
-                <Text style={styles.tipValue}>
-                  ₹ {totals.tip.toFixed(2)}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Grand Total</Text>
-              <Text style={styles.grandTotal}>
-                ₹ {totals.grandTotal.toFixed(2)}
-              </Text>
-            </View>
-          </View>
-
-          {totals.discount > 0 && (
-            <View style={styles.savingsBox}>
-              <Text style={styles.savingsText}>
-                Hurry! You saved ₹ {totals.discount.toFixed(2)} on this order.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* ADDRESS + ORDER INFO CARD */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoBlock}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.infoTitle}>Delivering Address</Text>
-              <TouchableOpacity>
-                <Text style={styles.trackLink}>Track Order</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.address}>
-              {order?.deliveryAddress?.addressLine || order?.address?.addressLine || order?.address || 'Address not available'}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoBlockCompact}>
-            <Text style={styles.infoLabel}>Order ID</Text>
-            <Text style={styles.infoValue}>#{order?.id || order?._id || 'N/A'}</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoBlockCompact}>
-            <Text style={styles.infoLabel}>Payment Method</Text>
-            <Text style={styles.infoValue}>
-              {order?.paymentMethod === 'cod' ? 'Cash on Delivery' : order?.paymentMethod === 'card' ? 'Credit/Debit Card' : order?.paymentMethod === 'wallet' ? 'Wallet' : order?.paymentMethod || 'Not specified'}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoBlockCompact}>
-            <Text style={styles.infoLabel}>Payment Time & Date</Text>
-            <Text style={styles.infoValue}>{formatDateTime(order?.createdAt || order?.paidAt)}</Text>
-          </View>
-        </View>
-      </ScrollView>
+          </ScrollView>
         </>
       )}
+
+      <RatingDrawerModal
+        visible={ratingVisible}
+        onClose={() => setRatingVisible(false)}
+        onSubmit={data => {
+          console.log('Rating Submitted:', data);
+          setRatingVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -520,20 +590,7 @@ const styles = StyleSheet.create({
     paddingBottom: scale(30),
   },
 
-  statusSection: {
-    backgroundColor: '#FDEEEE',
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    paddingHorizontal: scale(14),
-    paddingVertical: SPACING.md,
-    borderRadius: scale(12),
-  },
 
-  statusText: {
-    fontSize: FONT_SIZES.xs,
-    color: '#111111',
-    textAlign: 'center',
-  },
 
   section: {
     paddingHorizontal: SPACING.lg,
@@ -768,4 +825,36 @@ const styles = StyleSheet.create({
     color: '#EB5757',
     fontWeight: '600',
   },
+  statusSection: {
+  backgroundColor: '#FDEEEE',
+  marginHorizontal: SPACING.lg,
+  marginTop: SPACING.md,
+  paddingHorizontal: scale(14),
+  paddingVertical: SPACING.md,
+  borderRadius: scale(12),
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+
+statusText: {
+  fontSize: FONT_SIZES.xs,
+  color: '#111111',
+  flex: 1,
+  marginRight: SPACING.sm,
+},
+
+rateButton: {
+  backgroundColor: '#E53935',
+  paddingHorizontal: scale(14),
+  paddingVertical: scale(6),
+  borderRadius: scale(6),
+},
+
+rateButtonText: {
+  color: '#FFFFFF',
+  fontSize: FONT_SIZES.xs,
+  fontWeight: '600',
+},
+
 });

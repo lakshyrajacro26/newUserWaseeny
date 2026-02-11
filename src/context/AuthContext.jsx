@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { checkVerificationStatusApi, loginApi } from '../services/authService';
+import { checkVerificationStatusApi, loginApi, logoutApi } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
@@ -58,7 +58,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    try {
+      await logoutApi();
+    } catch (error) {
+      console.error('Logout API error:', error);
+    }
     await AsyncStorage.removeItem('userData');
+    await AsyncStorage.removeItem('auth_token');
     setUser(null);
   };
 

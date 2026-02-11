@@ -165,7 +165,12 @@ export default function OrderDetailsScreen() {
             <TouchableOpacity
               style={styles.backBtn}
               activeOpacity={0.85}
-              onPress={() => navigation.goBack()}
+              onPress={() =>
+                navigation.navigate('MainTabs', {
+                  screen: 'Home',
+                  params: { screen: 'HomePage' },
+                })
+              }
             >
               <ArrowLeft size={20} color="#111" />
             </TouchableOpacity>
@@ -186,7 +191,13 @@ export default function OrderDetailsScreen() {
                   activeOpacity={0.7}
                   onPress={() => {
                     if (order?.restaurant?._id) {
-                      navigation.navigate('RestaurantDetail', { restaurant: order.restaurant });
+                      navigation.navigate('MainTabs', {
+                        screen: 'Home',
+                        params: { 
+                          screen: 'RestaurantDetail',
+                          params: { restaurant: order.restaurant }
+                        },
+                      });
                     }
                   }}
                 >

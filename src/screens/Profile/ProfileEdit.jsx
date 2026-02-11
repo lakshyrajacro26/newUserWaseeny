@@ -19,6 +19,7 @@ import MaterialTextInput from '../../components/input/MaterialTextInput';
 import useHideTabBar from "../../utils/hooks/useHideTabBar";
 import apiClient from '../../config/apiClient';
 import { USER_ROUTES } from '../../config/routes';
+import { verifyProfileOtp, resendProfileOtp } from '../../services/userService';
 import OTPVerificationModal from '../../components/OTPVerificationModal';
 
 const ProfileScreen = () => {
@@ -230,7 +231,7 @@ const ProfileScreen = () => {
   const handleVerifyOTP = async (otp) => {
     try {
       setIsVerifying(true);
-      const response = await apiClient.post(USER_ROUTES.verifyProfileOTP, { otp });
+      await verifyProfileOtp(otp);
       
       setShowOTPModal(false);
       Alert.alert('Success', 'Profile updated successfully!', [
@@ -250,7 +251,7 @@ const ProfileScreen = () => {
 
   const handleResendOTP = async () => {
     try {
-      await apiClient.post(USER_ROUTES.resendProfileOTP);
+      await resendProfileOtp();
       Alert.alert('Success', 'OTP resent successfully');
     } catch (error) {
       console.error('Error resending OTP:', error);
