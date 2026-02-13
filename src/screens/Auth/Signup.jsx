@@ -177,7 +177,7 @@ export default function CreateAccountScreen() {
     } catch (error) {
       const errMsg = error?.response?.data?.message || error?.message || '';
 
-      // If backend indicates user already exists, check verification status
+     
       if (/already|exists/i.test(errMsg)) {
         try {
           const status = await checkVerificationStatus({ email: emailValue, mobile: mobileValue });
@@ -203,7 +203,7 @@ export default function CreateAccountScreen() {
             return;
           }
 
-          // if already verified, suggest login
+          
           Toast.show({
             type: 'info',
             text1: 'Account Already Exists',
@@ -215,7 +215,7 @@ export default function CreateAccountScreen() {
           });
           return;
         } catch (innerErr) {
-          // fallback to generic message
+          
         }
       }
 
@@ -239,7 +239,7 @@ export default function CreateAccountScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
-        {/* HEADER - Login Screen जैसा */}
+       
         <View style={styles.header}>
           <Image
             source={require('../../assets/images/BgImg.png')}
@@ -250,10 +250,10 @@ export default function CreateAccountScreen() {
 
           <View style={styles.headerOverlay} />
           <View style={styles.headerBottomFade} />
-          {/* <LogoIcon width={180} height={90} style={styles.logo} /> */}
+          
         </View>
 
-        {/* CONTENT */}
+        
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"

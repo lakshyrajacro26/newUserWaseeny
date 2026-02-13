@@ -19,6 +19,8 @@ import NewAddress from '../screens/Profile/NewAddress';
 import Coupons from '../screens/Profile/Coupons';
 import WalletProfile from '../screens/Profile/WalletProfile';
 import Favourite from '../screens/Favourite';
+import RatePastOrders from '../screens/Orders/RatePastOrders';
+import OrderDetailsScreen from '../screens/Orders/OrderDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -58,6 +60,8 @@ export default function ProfileStack() {
       <Stack.Screen name="WalletProfile" component={WalletProfile} />
       <Stack.Screen name="DeletionComplete" component={DeletionComplete} />
       <Stack.Screen name="Favourite" component={Favourite} />
+      <Stack.Screen name="RatePastOrders" component={RatePastOrders} />
+      <Stack.Screen name="OrderDetailsScreen" component={OrderDetailsScreen} />
     </Stack.Navigator>
   );
 }

@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useNetwork } from '../context/NetworkContext';
 
-/**
- * OfflineBanner - Simple network status indicator
- */
+
+
 const OfflineBanner = () => {
   const { isInternetReachable } = useNetwork();
   const [showBanner, setShowBanner] = useState(!isInternetReachable);

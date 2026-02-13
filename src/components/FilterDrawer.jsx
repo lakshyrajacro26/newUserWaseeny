@@ -46,11 +46,11 @@ export default function FilterDrawer({ visible, onClose, onReset, onApply }) {
   useEffect(() => {
     if (visible) {
       setIsAnimating(true);
-      // Reset to start position
+      
       translateX.setValue(screenWidth);
       overlayOpacity.setValue(0);
       
-      // Small delay to prevent flicker
+  
       requestAnimationFrame(() => {
         Animated.parallel([
           Animated.timing(translateX, {

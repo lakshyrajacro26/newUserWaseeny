@@ -39,11 +39,11 @@ const OTPVerificationModal = ({
       return undefined;
     }
 
-    // Reset to initial state
+    
     overlayOpacity.setValue(0);
     scale.setValue(0.8);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
@@ -73,7 +73,7 @@ const OTPVerificationModal = ({
     return () => backHandler.remove();
   }, [visible, overlayOpacity, scale, onClose]);
 
-  // Countdown timer for resend button
+ 
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -85,7 +85,7 @@ const OTPVerificationModal = ({
 
   const handleResend = () => {
     setResendDisabled(true);
-    setCountdown(60); // 60 seconds cooldown
+    setCountdown(60); 
     onResend();
   };
 
@@ -96,7 +96,7 @@ const OTPVerificationModal = ({
   };
 
   const handleOtpChange = (value, index) => {
-    // Only allow numbers
+    
     const numericValue = value.replace(/[^0-9]/g, '');
     
     if (numericValue.length <= 1) {
@@ -105,7 +105,7 @@ const OTPVerificationModal = ({
       const updatedOtp = newOtp.join('');
       setOtp(updatedOtp);
 
-      // Auto-focus next input
+      
       if (numericValue && index < 5) {
         inputRefs.current[index + 1]?.focus();
       }
@@ -136,7 +136,7 @@ const OTPVerificationModal = ({
           <View style={styles.contentView}>
             <Text style={styles.messageText}>{message}</Text>
             
-            {/* OTP Input Boxes */}
+            
             <View style={styles.otpContainer}>
               {[0, 1, 2, 3, 4, 5].map((index) => (
                 <TextInput
@@ -154,7 +154,7 @@ const OTPVerificationModal = ({
               ))}
             </View>
 
-            {/* Resend OTP Button */}
+            
             <TouchableOpacity
               onPress={handleResend}
               disabled={resendDisabled || loading}

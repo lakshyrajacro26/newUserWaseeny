@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { CartContext } from '../context/CartContext';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import AddToCartDrawer from '../components/AddToCartDrawer';
+import { RefreshableWrapper } from '../components/RefreshableWrapper';
 import { toNumber } from '../services/cartPricing';
 import { wp, hp } from '../utils/responsive';
 import { scale } from '../utils/scale';
@@ -167,8 +168,6 @@ export default function CartScreen() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
 
-  // Debug logging removed to keep taps responsive on device
-
   const groups = useMemo(() => groupByRestaurant(cart), [cart]);
   const hasItems = Array.isArray(cart) && cart.length > 0;
 
@@ -182,7 +181,6 @@ export default function CartScreen() {
     [decrementItem],
   );
 
-  // Handle delete confirmation
   const handleDeleteItem = (itemId, itemName) => {
     setDeletingItemId(itemId);
     setDeleteItemName(itemName);
@@ -194,7 +192,6 @@ export default function CartScreen() {
     [],
   );
 
-  // Handle edit item
   const handleEdit = useCallback((item) => {
     setSelectedItem({
       id: item.menuItemId || item.productId || item.id,
@@ -219,7 +216,6 @@ export default function CartScreen() {
     setSelectedRestaurant(null);
   }, []);
 
-  // Confirm delete action
   const handleConfirmDelete = useCallback(async () => {
     if (!deletingItemId) return;
 
@@ -238,7 +234,6 @@ export default function CartScreen() {
     }
   }, [deletingItemId, deleteItemName, removeFromCart]);
 
-  // Cancel delete
   const handleCancelDelete = useCallback(() => {
     setDeleteModalVisible(false);
     setDeletingItemId(null);
@@ -274,6 +269,10 @@ export default function CartScreen() {
   const grandTotal = Math.max(0, totalBeforeTax + tax);
   const estimatedDelivery = 'Standard (20-35 minutes)';
 
+  const handleRefresh = async () => {
+    console.log('Cart refreshed');
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -287,9 +286,10 @@ export default function CartScreen() {
         <Text style={styles.headerTitle}>Cart</Text>
       </View>
 
-      <ScrollView
+      <RefreshableWrapper
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        onRefresh={handleRefresh}
       >
         {!hasItems ? (
           <View style={styles.emptyWrap}>
@@ -500,7 +500,7 @@ export default function CartScreen() {
         )}
 
         <View style={{ height: 110 }} />
-      </ScrollView>
+      </RefreshableWrapper>
 
       {hasItems && (
         <View style={styles.bottomBarCompact}>

@@ -26,9 +26,9 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-   {/* {!user ?( */}
+
     <>
-        {/* Always show splash first */}
+        
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="LanguageSelect" component={LanguageSelectScreen} />
         <Stack.Screen name="OnBoarding" component={OnBoarding} />
@@ -42,11 +42,11 @@ export default function AppNavigator() {
 
         <Stack.Screen name="HomePage" component={HomePage} />
          </>
-{/* // ): ( */}
+
  <>
         <Stack.Screen name="MainTabs" component={TabNavigator} />
         </>
-        {/* )} */}
+       
       </Stack.Navigator>
     </NavigationContainer>
   );

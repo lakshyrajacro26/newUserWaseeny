@@ -25,6 +25,7 @@ export const placeOrder = async orderData => {
     const response = await apiClient.post(ORDER_ROUTES.placeOrder, orderData);
     return response.data;
   } catch (error) {
+    console.error('Error placing order:', error);
     throw error;
   }
 };
@@ -37,3 +38,68 @@ export function generateOrderId(prefix = 'ORD') {
   const rand = Math.floor(1000 + Math.random() * 9000);
   return `${prefix}-${yyyy}${mm}${dd}-${rand}`;
 }
+
+export const rateOrder = async (orderId, ratingData) => {
+  try {
+    const url = ORDER_ROUTES.rateOrder.replace(':id', orderId);
+    const response = await apiClient.post(url, ratingData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const rateRestaurant = async (restaurantId, ratingData) => {
+  try {
+    const url = ORDER_ROUTES.rateRestaurant.replace(':id', restaurantId);
+    const response = await apiClient.post(url, ratingData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const rateRider = async (riderId, ratingData) => {
+  try {
+    const url = ORDER_ROUTES.rateRider.replace(':id', riderId);
+    const response = await apiClient.post(url, ratingData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const reportOrderIssue = async (orderId, issueData) => {
+  try {
+    const url = ORDER_ROUTES.reportIssue.replace(':id', orderId);
+    const response = await apiClient.post(url, issueData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const uploadOrderPhotos = async (orderId, images) => {
+  try {
+    const url = ORDER_ROUTES.uploadOrderPhotos.replace(':id', orderId);
+    
+    const formData = new FormData();
+    images.forEach((image, index) => {
+      formData.append('photos', {
+        uri: image.uri,
+        type: image.type,
+        name: image.name,
+      });
+    });
+
+    const response = await apiClient.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

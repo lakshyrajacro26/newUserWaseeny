@@ -52,7 +52,7 @@ export default function LanguageSelectScreen() {
           bounces={false}
           showsVerticalScrollIndicator={false}
         >
-          {/* 🔴 TOP CURVED PNG */}
+         
           <View style={styles.header}>
             <Image
               source={require('../../assets/images/FoodCurve.png')}
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     width: 190,
     height: 85,
   },
-  /* 📦 CONTENT */
+ 
   content: {
     paddingHorizontal: 24,
     paddingTop: 18,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 26,
   },
-  /* 🌍 LANGUAGE CARDS */
+  
   langCard: {
     borderWidth: 1,
     borderColor: '#DADADA',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /* 🔴 BUTTON */
+  
   btnWrapper: {
     paddingHorizontal: 24,
     paddingBottom: 24,

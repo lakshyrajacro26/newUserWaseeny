@@ -7,6 +7,7 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     checkAuthStatus();
@@ -14,31 +15,49 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      // 1️⃣ Check local user
+      
       const storedUser = await AsyncStorage.getItem('userData');
+      const storedToken = await AsyncStorage.getItem('auth_token');
 
       if (!storedUser) {
         setUser(null);
         return;
       }
-        setUser(JSON.parse(storedUser));
+      
+      setUser(JSON.parse(storedUser));
+      
      
-      // 2️⃣ OPTIONAL but BEST: verify cookie with backend
-      // const response = await checkVerificationStatusApi(); // protected API
-      // setUser(response.data.user);
+      if (storedToken) {
+        console.log('✅ [AuthContext] Auth token found in storage');
+      } else {
+        console.warn('⚠️ [AuthContext] No auth token in storage');
+      }
+     
+   
     } catch (error) {
       setUser(null);
       await AsyncStorage.removeItem('userData');
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
   };
 
   const login = async (email, password) => {
     try {
       const response = await loginApi({ email, password });
-      console.log("response", response.data)
-      const { user } = response.data;
+      console.log("response", response.data);
+      
+      const { user, token, accessToken } = response.data;
+      
+     
+      const authToken = token || accessToken;
+      if (authToken) {
+        await AsyncStorage.setItem('auth_token', authToken);
+        console.log('✅ [AuthContext] Auth token saved to storage');
+      } else {
+        console.warn('⚠️ [AuthContext] No token in login response - using cookie-based auth');
+      }
 
       if (user) {
         await AsyncStorage.setItem('userData', JSON.stringify(user));
@@ -76,6 +95,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         loading,
         isAuthenticated: !!user,
+        isInitialized,
       }}
     >
       {children}

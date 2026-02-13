@@ -12,7 +12,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { CartContext } from '../context/CartContext';
-import { generateOrderId, placeOrder } from '../services/orderService';
+import { placeOrder } from '../services/orderService';
 import { toNumber } from '../services/cartPricing';
 import { CART_ROUTES } from '../config/routes';
 import apiClient from '../config/apiClient';
@@ -58,6 +58,8 @@ export default function ReviewOrderScreen() {
   const [showModal, setShowModal] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [orderStatus, setOrderStatus] = useState('success'); // 'success' | 'failed'
+  const [orderErrorMessage, setOrderErrorMessage] = useState('');
 
   const [leaveAtDoor, setLeaveAtDoor] = useState(false);
   const [tipAmount, setTipAmount] = useState(0); // 0 | 5 | 10 | 20
@@ -191,7 +193,6 @@ export default function ReviewOrderScreen() {
       }
     } catch (error) {
       console.error('❌ Failed to update tip:', error?.message);
-      // Fallback: still update local state
       setTipAmount(newTipAmount);
     } finally {
       setTipLoading(false);
@@ -240,7 +241,6 @@ export default function ReviewOrderScreen() {
     if (isPlacing || !latestCartRef.current?.length) return;
     setIsPlacing(true);
 
-    // Clear any previous submit errors
     setErrors(prev => {
       const { submit, ...rest } = prev;
       return rest;
@@ -259,53 +259,43 @@ export default function ReviewOrderScreen() {
       paymentMethod: paymentCode,
     };
 
-    let newOrderId = generateOrderId('FP');
-
     try {
+      console.log('Placing order with payload:', orderPayload);
       const response = await placeOrder(orderPayload);
       const apiOrder = response?.order || null;
-      if (apiOrder?._id) {
-        newOrderId = apiOrder._id;
-        addOrder({
-          ...apiOrder,
-          id: apiOrder._id,
-          totals: summary,
-          checkout: checkoutSnapshot,
-          address: addressSnapshot,
-          paymentMethod: paymentSnapshot,
-          leaveAtDoor,
-        });
-      } else {
-        addOrder({
-          id: newOrderId,
-          totals: summary,
-          checkout: checkoutSnapshot,
-          address: addressSnapshot,
-          paymentMethod: paymentSnapshot,
-          leaveAtDoor,
-          createdAt: new Date().toISOString(),
-          status: 'confirmed',
-          items: latestCartRef.current,
-        });
+      
+      if (!apiOrder?._id) {
+        throw new Error('Invalid order response from server');
       }
-    } catch (error) {
-      console.log('Order API failed, falling back to local confirmation', error);
+      
+      const newOrderId = apiOrder._id;
       addOrder({
-        id: newOrderId,
+        ...apiOrder,
+        id: apiOrder._id,
         totals: summary,
         checkout: checkoutSnapshot,
         address: addressSnapshot,
         paymentMethod: paymentSnapshot,
         leaveAtDoor,
-        createdAt: new Date().toISOString(),
-        status: 'confirmed',
-        items: latestCartRef.current,
       });
-    } finally {
       
       await fetchCart();
       setOrderId(newOrderId);
+      setOrderStatus('success');
+      setOrderErrorMessage('');
       setShowModal(true);
+    } catch (error) {
+      console.error('Order placement failed:', error);
+      
+      const errorMsg = error?.response?.data?.message 
+        || error?.message 
+        || 'Unable to place your order. Please check your connection and try again.';
+      
+      setOrderStatus('failed');
+      setOrderErrorMessage(errorMsg);
+      setOrderId('');
+      setShowModal(true);
+    } finally {
       setIsPlacing(false);
     }
   };
@@ -330,11 +320,11 @@ export default function ReviewOrderScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, styles.sectionCardGray]}>
           <Pressable
             style={styles.sectionTitleRow}
             onPress={() => {
-              setSheetBackTarget(prev => ({ ...prev, address: null }));
+              setSheetBackTarget({ address: null, payment: null });
               setActiveSheet('address');
             }}
           >
@@ -345,7 +335,7 @@ export default function ReviewOrderScreen() {
           <Pressable
             style={styles.addressRow}
             onPress={() => {
-              setSheetBackTarget(prev => ({ ...prev, address: null }));
+              setSheetBackTarget({ address: null, payment: null });
               setActiveSheet('address');
             }}
           >
@@ -410,11 +400,11 @@ export default function ReviewOrderScreen() {
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, styles.sectionCardGray]}>
           <Pressable
             style={styles.sectionTitleRow}
             onPress={() => {
-              setSheetBackTarget(prev => ({ ...prev, payment: null }));
+              setSheetBackTarget({ address: null, payment: null });
               setActiveSheet('payment');
             }}
           >
@@ -423,7 +413,7 @@ export default function ReviewOrderScreen() {
           </Pressable>
           <Pressable
             onPress={() => {
-              setSheetBackTarget(prev => ({ ...prev, payment: null }));
+              setSheetBackTarget({ address: null, payment: null });
               setActiveSheet('payment');
             }}
           >
@@ -508,7 +498,6 @@ export default function ReviewOrderScreen() {
           <Text
             style={styles.termsLink}
             onPress={() => {
-              // optional: route to your Terms screen
             }}
           >
             terms & condition
@@ -524,7 +513,7 @@ export default function ReviewOrderScreen() {
         </View>
       )}
 
-      <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
+      <SafeAreaView style={styles.bottomBar} edges={[]}>
         <View style={styles.bottomLeft}>
           <Text style={styles.bottomTotal}>
             ₹{summary.grandTotal.toFixed(2)}
@@ -558,8 +547,8 @@ export default function ReviewOrderScreen() {
         }}
         onAdd={payload => {
           setCheckout(payload);
-          setSheetBackTarget({ address: 'delivery', payment: 'address' });
           if (deliveryNextStep === 'address') {
+            setSheetBackTarget({ address: 'delivery', payment: 'address' });
             setActiveSheet('address');
           } else {
             setActiveSheet(null);
@@ -572,11 +561,20 @@ export default function ReviewOrderScreen() {
         visible={activeSheet === 'address'}
         addresses={addressOptions}
         selectedAddressId={address?.id || null}
-        onSelect={addr => setAddress(addr)}
+        onSelect={addr => {
+          setAddress(addr);
+          setErrors(prev => {
+            const { address, ...rest } = prev;
+            return rest;
+          });
+        }}
         onApply={addr => {
           setAddress(addr);
-          setSheetBackTarget(prev => ({ ...prev, payment: 'address' }));
-          setActiveSheet('payment');
+          setErrors(prev => {
+            const { address, ...rest } = prev;
+            return rest;
+          });
+          setActiveSheet(null);
         }}
         onAddAddress={async payload => {
           const response = await addAddress(payload);
@@ -607,6 +605,10 @@ export default function ReviewOrderScreen() {
         }
         onApply={method => {
           setPaymentMethod(method);
+          setErrors(prev => {
+            const { payment, ...rest } = prev;
+            return rest;
+          });
           setActiveSheet(null);
         }}
       />
@@ -614,13 +616,27 @@ export default function ReviewOrderScreen() {
       <OrderConfirmedModal
         visible={showModal}
         orderId={orderId}
+        status={orderStatus}
+        errorMessage={orderErrorMessage}
         onViewDetails={() => {
           setShowModal(false);
-          navigation.navigate('OrderDetailsScreen', { orderId });
+          if (orderStatus === 'success') {
+            navigation.navigate('OrderDetailsScreen', { 
+              orderId,
+              fromScreen: 'ReviewOrder'
+            });
+          } else {
+            // Retry order placement on error
+            handleFinalizeOrder();
+          }
         }}
         onExploreMenu={() => {
           setShowModal(false);
-          navigation.navigate('MainTabs', { screen: 'Home' });
+          if (orderStatus === 'success') {
+            navigation.navigate('MainTabs', { screen: 'Home' });
+          } else {
+            navigation.goBack();
+          }
         }}
       />
     </SafeAreaView>
@@ -630,7 +646,6 @@ export default function ReviewOrderScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#ffffff' },
 
-  /* ---------- HEADER ---------- */
   header: {
     height: hp(7),
     flexDirection: 'row',
@@ -648,7 +663,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '700',
     color: '#111',
   },
@@ -658,13 +673,16 @@ const styles = StyleSheet.create({
     paddingBottom: hp(18),
   },
 
-  /* ---------- SECTIONS ---------- */
   sectionCard: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: '#EFEFEF',
     backgroundColor: '#FFF',
+  },
+
+  sectionCardGray: {
+    backgroundColor: '#f0eded',
   },
 
   sectionTitleRow: {
@@ -674,12 +692,11 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#111',
   },
 
-  /* ---------- DELIVERY ---------- */
   deliveryValue: {
     marginTop: SPACING.xs,
     fontSize: FONT_SIZES.xs,
@@ -693,21 +710,20 @@ const styles = StyleSheet.create({
     color: '#777',
   },
 
-  /* ---------- ADDRESS ---------- */
   addressRow: {
     marginTop: SPACING.sm,
   },
   addressLabel: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#111',
   },
   addressLine: {
     marginTop: scale(4),
-    fontSize: FONT_SIZES.xs - 1,
+    fontSize: FONT_SIZES.xs - 2,
     fontWeight: '500',
     color: '#666',
-    lineHeight: scale(15),
+    lineHeight: scale(14),
   },
 
   leaveRow: {
@@ -717,18 +733,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   leaveText: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '600',
     color: '#111',
   },
 
-  /* ---------- TIP ---------- */
   tipSub: {
     marginTop: SPACING.xs,
-    fontSize: FONT_SIZES.xs - 1,
+    fontSize: FONT_SIZES.xs - 2,
     fontWeight: '500',
     color: '#777',
-    lineHeight: scale(15),
+    lineHeight: scale(14),
   },
 
   tipRow: {
@@ -755,7 +770,7 @@ const styles = StyleSheet.create({
   },
 
   tipChipText: {
-    fontSize: FONT_SIZES.xs - 1,
+    fontSize: FONT_SIZES.xs - 2,
     fontWeight: '700',
     color: '#111',
   },
@@ -764,15 +779,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 
-  /* ---------- PAYMENT ---------- */
   paymentValue: {
     marginTop: SPACING.xs,
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '600',
     color: '#111',
   },
 
-  /* ---------- BILL ---------- */
   billRow: {
     marginTop: SPACING.sm,
     flexDirection: 'row',
@@ -780,32 +793,32 @@ const styles = StyleSheet.create({
   },
 
   billLabel: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '600',
     color: '#555',
   },
 
   billValue: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '600',
     color: '#111',
   },
 
   billFree: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#E53935',
   },
 
   offerSub: {
     marginTop: scale(2),
-    fontSize: FONT_SIZES.xs - 1,
+    fontSize: FONT_SIZES.xs - 2,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   offerValue: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#FF3D3D',
   },
@@ -822,7 +835,7 @@ const styles = StyleSheet.create({
   },
 
   billStrong: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '800',
     color: '#111',
   },
@@ -838,13 +851,13 @@ const styles = StyleSheet.create({
   },
 
   tipLabel: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#FF3D3D',
   },
 
   tipValue: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '700',
     color: '#FF3D3D',
   },
@@ -858,19 +871,18 @@ const styles = StyleSheet.create({
   },
 
   billFinal: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
     fontWeight: '800',
     color: '#FFF',
   },
 
-  /* ---------- TERMS ---------- */
   termsText: {
     marginTop: SPACING.md,
     paddingHorizontal: SPACING.lg,
-    fontSize: FONT_SIZES.xs - 1,
+    fontSize: FONT_SIZES.xs - 2,
     fontWeight: '500',
     color: '#666',
-    lineHeight: scale(15),
+    lineHeight: scale(14),
   },
 
   termsLink: {
@@ -879,14 +891,14 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  /* ---------- BOTTOM BAR ---------- */
   bottomBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
@@ -897,13 +909,13 @@ const styles = StyleSheet.create({
 
   bottomLeft: {},
   bottomTotal: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.sm,
     fontWeight: '800',
     color: '#111',
   },
   bottomSub: {
     marginTop: scale(2),
-    fontSize: FONT_SIZES.xs - 1,
+    fontSize: FONT_SIZES.xs - 2,
     fontWeight: '500',
     color: '#777',
   },
@@ -918,7 +930,7 @@ const styles = StyleSheet.create({
   },
 
   placeOrderText: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '800',
     color: '#FFF',
   },
@@ -934,14 +946,14 @@ const styles = StyleSheet.create({
   },
 
   submitErrorText: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '600',
     color: '#FF3D3D',
     textAlign: 'center',
   },
   errorText: {
     marginTop: SPACING.xs,
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.xs - 1,
     fontWeight: '600',
     color: '#FF3D3D',
   },

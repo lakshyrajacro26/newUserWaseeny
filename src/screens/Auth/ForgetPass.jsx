@@ -87,7 +87,7 @@ export default function ForgetPass() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.innerContainer}>
-            {/* Background Hero - Behind everything */}
+            
             <View style={styles.heroWrap} pointerEvents="none">
               <View style={styles.heroCircle} />
               <Image
@@ -118,7 +118,7 @@ export default function ForgetPass() {
               
               <View style={styles.heroSpacer} />
 
-              {/* Content */}
+             
               <View style={styles.content}>
                 <Text style={styles.desc}>
                   Enter your registered email and{`\n`}we'll send you a link/OTP to

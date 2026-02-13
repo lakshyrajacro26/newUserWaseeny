@@ -20,6 +20,13 @@ export const ORDER_ROUTES = {
   placeOrder: '/api/orders/place',
   getOrders: '/api/orders/my-orders',
   getOrderById: '/api/orders/:id/details',
+  
+  //dummy api
+  rateOrder: '/api/orders/:id/rate',
+  rateRestaurant: '/api/restaurants/:id/rate',
+  rateRider: '/api/riders/:id/rate',
+  reportIssue: '/api/orders/:id/report-issue',
+  uploadOrderPhotos: '/api/orders/:id/upload-photos',
 };
 
 export const SEARCH_ROUTES = {

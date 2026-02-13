@@ -10,23 +10,18 @@ const { width, height } = Dimensions.get('window');
 
 const SplashScreen = () => {
   const navigation = useNavigation();
-  const { loading, isAuthenticated } = useAuth();
+  const { isInitialized, isAuthenticated } = useAuth();
 
 
   useEffect(() => {
-    if (loading) return;
+    if (!isInitialized) return;
 
     const timer = setTimeout(() => {
-      if (isAuthenticated) {
-        navigation.replace('MainTabs');
-        return;
-      }
-
       navigation.replace('LanguageSelect');
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [navigation, loading, isAuthenticated]);
+  }, [navigation, isInitialized]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,7 +55,7 @@ const SplashScreen = () => {
         </Svg>
       </View>
 
-      {/* NOODLES */}
+     
       <Image
         source={require('../../assets/images/Noodle.png')}
         style={styles.noodle}

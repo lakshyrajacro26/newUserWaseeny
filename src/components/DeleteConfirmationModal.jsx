@@ -29,11 +29,11 @@ export const DeleteConfirmationModal = ({
       return undefined;
     }
 
-    // Reset to initial state
+
     overlayOpacity.setValue(0);
     scale.setValue(0.8);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
@@ -71,12 +71,12 @@ export const DeleteConfirmationModal = ({
     >
       <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
         <Animated.View style={[styles.modalContainer, { transform: [{ scale }] }]}>
-          {/* Header */}
+         
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Remove Item</Text>
           </View>
 
-          {/* Content */}
+          
           <View style={styles.content}>
             <Text style={styles.message}>
               Are you sure you want to remove{'\n'}
@@ -85,7 +85,7 @@ export const DeleteConfirmationModal = ({
             </Text>
           </View>
 
-          {/* Buttons */}
+         
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}

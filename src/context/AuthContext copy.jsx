@@ -12,10 +12,7 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  /**
-   * PRODUCTION PATTERN: Initialize auth state once at app launch
-   * Reads from AsyncStorage only once, avoiding repeated disk I/O
-   */
+
   const initializeAuth = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -42,17 +39,12 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  /**
-   * Initialize auth state on mount
-   */
+ 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
-  /**
-   * Set authenticated user (called after login/signup)
-   * Saves to AsyncStorage immediately for persistence
-   */
+ 
   const setAuthenticatedUser = useCallback(async (newToken, newUser) => {
     try {
       await saveAuth({ token: newToken, user: newUser });
@@ -65,21 +57,18 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  /**
-   * Logout handler
-   * Calls logout API endpoint first, then clears AsyncStorage and resets in-memory state
-   */
+
   const logout = useCallback(async () => {
     try {
-      // Call logout API endpoint
+     
       try {
         await apiClient.post(AUTH_ROUTES.logout);
       } catch (apiError) {
-        // Log API error but continue with local logout
+        
         console.warn('Logout API call failed - clearing auth locally:', apiError.message);
       }
 
-      // Clear local auth state
+      
       await clearAuth();
       setToken(null);
       setUser(null);
@@ -103,10 +92,7 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-/**
- * Hook to use auth context
- * Production apps should always check isInitialized before routing
- */
+
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

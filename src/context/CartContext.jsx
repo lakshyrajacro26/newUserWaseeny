@@ -23,7 +23,7 @@ export const CartContext = createContext({});
 function normalizeLegacyItemToCartLine(raw) {
   if (!raw) return null;
 
-  // Legacy screens use: { ...menuItem, qty }
+ 
   const quantity = toNumber(raw.quantity ?? raw.qty ?? 1, 1);
 
   const basePrice = toNumber(raw.basePrice ?? raw.price ?? 0, 0);
@@ -84,16 +84,16 @@ export const CartProvider = ({ children }) => {
   const [address, setAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [backendStatus, setBackendStatus] = useState('checking'); // 'checking' | 'online' | 'offline'
+  const [backendStatus, setBackendStatus] = useState('checking'); 
   
-  // Conflict modal state
+ 
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictData, setConflictData] = useState(null);
   const [pendingConflictPayload, setPendingConflictPayload] = useState(null);
   const [conflictModalLoading, setConflictModalLoading] = useState(false);
   const [freshCartResolvedAt, setFreshCartResolvedAt] = useState(0);
 
-  // Debounce timers for quantity updates (prevent multiple API calls)
+
   const quantityUpdateTimers = useRef({});
   const pendingQuantities = useRef({});
   const cartRef = useRef([]);
@@ -102,7 +102,7 @@ export const CartProvider = ({ children }) => {
     cartRef.current = cart;
   }, [cart]);
 
-  // Fetch cart only when user is authenticated
+
   useEffect(() => {
     if (isInitialized && isAuthenticated) {
       console.log('CartContext: User authenticated, fetching cart');
@@ -126,7 +126,7 @@ export const CartProvider = ({ children }) => {
         setBackendStatus('online');
         setBackendCart(data.cart);
         setBill(data.bill);
-        // Transform backend cart items to local format
+   
         const transformedItems = (data.cart.items || []).map(item => ({
           id: item._id,
           menuItemId: item.product,
@@ -149,21 +149,21 @@ export const CartProvider = ({ children }) => {
         setCart(transformedItems);
       } else {
         console.log('CartContext: No cart data, clearing cart');
-        setBackendStatus('online'); // No cart but backend responded
+        setBackendStatus('online'); 
         setCart([]);
         setBackendCart(null);
         setBill(null);
       }
     } catch (error) {
       console.error('CartContext: Error fetching cart:', error?.message, error?.status);
-      // Mark backend as offline if network error
+      
       if (!error?.response) {
         setBackendStatus('offline');
       }
       if (error?.status === 401 || error?.status === 403) {
         console.log('CartContext: Authentication error while fetching cart');
       }
-      // Clear cart on any error
+      
       setCart([]);
       setBackendCart(null);
       setBill(null);
@@ -180,7 +180,7 @@ export const CartProvider = ({ children }) => {
       new: newRestaurant?.name,
     });
     
-    // Store conflict data and pending payload
+    
     setConflictData(conflictData);
     setPendingConflictPayload(payload);
     setShowConflictModal(true);
@@ -209,7 +209,7 @@ export const CartProvider = ({ children }) => {
       const result = await addItemToCart(payload);
       console.log('📥 CartContext: API result received:', result);
 
-      // CHECK FOR CONFLICT FIRST (before any other checks)
+      
       if (result && result.conflict === true) {
         console.log('⚠️ CartContext: CONFLICT DETECTED IN RESULT!');
         console.log('  Current Restaurant:', result.currentRestaurant?.name);
@@ -217,7 +217,7 @@ export const CartProvider = ({ children }) => {
         
         setLoading(false);
         
-        // Show modal with conflict data
+      
         console.log('CartContext: Setting conflict modal state...');
         setConflictData({
           currentRestaurant: result.currentRestaurant,
@@ -230,7 +230,7 @@ export const CartProvider = ({ children }) => {
         return { conflict: true };
       }
 
-      // Then check for successful addition
+      
       if (result?.cart) {
         console.log('✅ CartContext: Item added successfully');
         setBackendCart(result.cart);
@@ -239,7 +239,7 @@ export const CartProvider = ({ children }) => {
         return { success: true };
       }
       
-      // If neither conflict nor cart data, something unexpected happened
+    
       console.warn('⚠️ CartContext: Unexpected response format:', result);
       return { error: true };
     } catch (error) {
@@ -252,7 +252,7 @@ export const CartProvider = ({ children }) => {
           position: 'top',
         });
       } else if (error?.message?.includes('Network')) {
-        // Network error - don't show alert, just log
+        
         console.warn('CartContext: Network error caught, not showing alert');
       } else {
         Toast.show({
@@ -289,7 +289,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = useCallback(async () => {
     try {
       setLoading(true);
-      // Remove all items one by one or implement a clear cart API
+      
       for (const item of cart) {
         await removeItemFromCart(item.id);
       }
@@ -331,7 +331,7 @@ export const CartProvider = ({ children }) => {
       
       if (Array.isArray(data?.orders) || Array.isArray(data)) {
         const ordersList = Array.isArray(data?.orders) ? data.orders : data;
-        // Transform orders if needed and set them
+       
         setOrders(ordersList);
       } else if (data?.data && Array.isArray(data.data)) {
         setOrders(data.data);
@@ -341,13 +341,13 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('CartContext: Error fetching orders:', error?.message, error?.response?.status);
-      // Only log but don't throw - gracefully handle 404 or other errors
+      
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         console.log('CartContext: Authentication error while fetching orders');
       } else if (error?.response?.status === 404) {
         console.log('CartContext: Orders endpoint not found (404) - Backend may not have this endpoint yet');
       }
-      // Don't set orders to empty on error - keep existing orders
+      
     } finally {
       setLoading(false);
     }
@@ -403,7 +403,7 @@ export const CartProvider = ({ children }) => {
 
     pendingQuantities.current[resolvedId] = newQty;
 
-    // Optimistic update using functional state
+    
     setCart(prevCart =>
       prevCart.map(it =>
         String(it.id) === String(resolvedId)
@@ -412,7 +412,7 @@ export const CartProvider = ({ children }) => {
       )
     );
 
-    // Debounce API call
+    
     if (quantityUpdateTimers.current[resolvedId]) {
       clearTimeout(quantityUpdateTimers.current[resolvedId]);
     }
@@ -490,7 +490,7 @@ export const CartProvider = ({ children }) => {
       )
     );
 
-    // Debounce API call
+   
     if (quantityUpdateTimers.current[resolvedId]) {
       clearTimeout(quantityUpdateTimers.current[resolvedId]);
     }
@@ -529,7 +529,7 @@ export const CartProvider = ({ children }) => {
     }, 350);
   }, [removeFromCart]);
 
-  // Conflict Modal Handlers
+ 
   const handlePlaceCurrentOrder = useCallback(() => {
     console.log('CartContext: User chose to place current order');
     setShowConflictModal(false);
@@ -555,12 +555,12 @@ export const CartProvider = ({ children }) => {
         setBackendCart(result.cart);
         setBill(result.bill);
         
-        // Close modal
+       
         setShowConflictModal(false);
         setConflictData(null);
         setPendingConflictPayload(null);
         
-        // Refresh cart
+        
         await fetchCart();
       }
     } catch (error) {

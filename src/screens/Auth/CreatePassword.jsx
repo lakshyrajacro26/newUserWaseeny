@@ -72,7 +72,7 @@ const ChangePasswordScreen = () => {
 
     setIsLoading(true);
 
-    // If flow is 'forget', call reset password API
+    
     if (flow === 'forget' && resetToken) {
       try {
         await resetPassword({ 
@@ -106,7 +106,7 @@ const ChangePasswordScreen = () => {
       return;
     }
 
-    // Default behavior for other flows (e.g., profile password change)
+    
     Toast.show({
       type: 'topSuccess',
       text1: 'Password Updated',
@@ -116,11 +116,11 @@ const ChangePasswordScreen = () => {
       visibilityTime: 3000,
       props: { showLoader: true },
       onHide: () => {
-        // If this flow originated from signup, continue to FoodPreference
+        
         if (flow === 'signup') {
           navigation.replace('FoodPreference', { email });
         } else {
-          // default (forget/reset) -> go to Login
+          
           navigation.replace('LoginScreen');
         }
       },

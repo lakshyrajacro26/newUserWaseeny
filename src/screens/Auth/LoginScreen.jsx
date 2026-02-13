@@ -52,8 +52,7 @@ export default function LoginScreen() {
 
       console.log('Google User:', userInfo);
 
-      // 👉 Send this token to your backend
-      // userInfo.idToken
+
     } catch (error) {
       console.log('Google Sign-In Error:', error);
     }
@@ -72,7 +71,7 @@ export default function LoginScreen() {
 
   const validate = () => {
     let valid = true;
-    // Email validation
+    
     if (!email) {
       setEmailError('Email is required');
       valid = false;
@@ -82,7 +81,7 @@ export default function LoginScreen() {
     } else {
       setEmailError('');
     }
-    // Password validation
+    
     if (!password) {
       setPasswordError('Password is required');
       valid = false;
@@ -147,7 +146,7 @@ export default function LoginScreen() {
           <LogoIcon width={wp(50)} height={hp(18.75)} style={styles.logo} />
         </View>
 
-        {/* CONTENT */}
+       
         <View style={styles.content}>
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>
@@ -231,7 +230,7 @@ const styles = StyleSheet.create({
 
   header: {
     width: '100%',
-    height: hp(66), // matches design proportion
+    height: hp(66), 
     overflow: 'hidden',
     borderBottomLeftRadius: scale(34),
     borderBottomRightRadius: scale(34),
@@ -268,7 +267,7 @@ const styles = StyleSheet.create({
     marginTop: hp(6.25),
   },
 
-  /* CONTENT */
+  
   content: {
     flex: 1,
     paddingHorizontal: wp(6.67),

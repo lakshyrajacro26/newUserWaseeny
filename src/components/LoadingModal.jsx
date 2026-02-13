@@ -19,11 +19,11 @@ export default function LoadingModal({ visible, message = 'Loading...' }) {
       return undefined;
     }
 
-    // Reset to initial state
+ 
     opacityAnim.setValue(0);
     scale.setValue(0.8);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {

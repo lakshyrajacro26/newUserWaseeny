@@ -23,7 +23,7 @@ export default function OtpVerificationScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { setAuthenticatedUser } = useAuth();
-  const flow = route.params?.flow ?? 'signup'; // flow = 'signup' | 'forget'
+  const flow = route.params?.flow ?? 'signup'; 
   const email = route.params?.email ?? '';
   const mobileFromParams = route.params?.mobile ?? '';
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -35,7 +35,7 @@ export default function OtpVerificationScreen() {
   const inputs = useRef([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Timer countdown
+  
   useEffect(() => {
     if (timer > 0) {
       const interval = setInterval(() => setTimer(prev => prev - 1), 1000);
@@ -43,7 +43,7 @@ export default function OtpVerificationScreen() {
     }
   }, [timer]);
 
-  // Fade animation
+  
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -67,9 +67,9 @@ export default function OtpVerificationScreen() {
         .catch(() => undefined);
     }
 
-    // auto-resend if caller requested it (e.g., login redirected here)
+   
     if (route.params?.autoResend && !isResending) {
-      // small timeout to allow component to mount and toast to settle
+     
       setTimeout(() => {
         if (!isResending) handleResend();
       }, 400);
@@ -97,7 +97,7 @@ export default function OtpVerificationScreen() {
 
     const otpValue = otp.join('');
 
-    // For password reset flow, verify OTP and get reset token
+    
     if (flow === 'forget') {
       try {
         setIsLoading(true);
@@ -138,7 +138,7 @@ export default function OtpVerificationScreen() {
       return;
     }
 
-    // For signup flow, verify OTP via API
+
     const mobileValue = (mobile ?? '').trim();
 
     if (!mobileValue) {
@@ -156,11 +156,6 @@ export default function OtpVerificationScreen() {
       const data = await registerVerify({ mobile: mobileValue, otp: otpValue });
       await clearPendingSignup();
 
-      /**
-       * PRODUCTION PATTERN:
-       * After OTP verification, update AuthContext with token and user
-       * This saves to AsyncStorage and marks user as authenticated
-       */
       const token = data?.token || data?.accessToken || data?.data?.token;
       const user = data?.user || data?.data?.user;
       
@@ -198,7 +193,7 @@ export default function OtpVerificationScreen() {
       setIsResending(true);
       const payload = { mobile: mobile ?? '', email: email ?? '' };
       
-      // Use different endpoint based on flow
+     
       if (flow === 'forget') {
         await forgotPasswordResendOTP(payload);
       } else {
@@ -312,8 +307,7 @@ const styles = StyleSheet.create({
     height: '100%',
     top: 0,
     left: 0,
-    // Flip the image to show bottom part first
-    // transform: [{ scaleY: -1 }],
+
   },
   gradientOverlay: {
     position: 'absolute',
@@ -322,7 +316,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    // Create gradient blur effect
+    
     backgroundGradient: {
       colors: [
         'transparent',

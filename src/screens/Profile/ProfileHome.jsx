@@ -203,6 +203,10 @@ function ProfileHome() {
             <MenuItem
               title="Food Preference"
               onPress={() => navigation.navigate('FoodPreference')}
+            />
+            <MenuItem
+              title="Rate Past Orders"
+              onPress={() => navigation.navigate('RatePastOrders')}
               isLast
             />
           </View>

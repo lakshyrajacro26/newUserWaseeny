@@ -16,22 +16,19 @@ function normalizeFavourite(raw) {
   const id = raw._id || raw.favouriteId || raw.id;
   if (!id) return null;
 
-  // Determine if this is a restaurant or product
+ 
   const isProduct = raw.type === 'product' || raw.menuItemId || raw.itemId || raw.productId || raw.product || !raw.cuisines;
 
-  // Extract product/menu item ID from possible shapes
   const rawMenuItem = raw.menuItemId || raw.itemId || raw.productId || raw.product || raw.item || null;
   let menuItemId = rawMenuItem && typeof rawMenuItem === 'object'
     ? (rawMenuItem._id || rawMenuItem.id || null)
     : rawMenuItem;
-  
-  // For products, if we couldn't extract a menuItemId, use the favorite's own ID
-  // (backend sometimes stores the product ID as the favorite record ID)
+
   if (isProduct && !menuItemId) {
     menuItemId = id;
   }
   
-  // Extract restaurant ID (handle nested objects and different formats)
+  
   let restaurantId = null;
   if (raw.restaurantId) {
     if (typeof raw.restaurantId === 'object' && raw.restaurantId._id) {
@@ -43,7 +40,7 @@ function normalizeFavourite(raw) {
     restaurantId = raw.restaurant._id;
   }
 
-  // Extract restaurant name
+
   let restaurantName = 'Restaurant';
   if (raw.restaurantId?.name) {
     restaurantName = typeof raw.restaurantId.name === 'object' 
@@ -61,7 +58,7 @@ function normalizeFavourite(raw) {
 
   return {
     id: String(id),
-    // For products, menuItemId should be the product's own ID
+ 
     menuItemId: isProduct ? (menuItemId ?? null) : null,
     restaurantId: restaurantId,
     restaurantName: restaurantName,
@@ -81,7 +78,7 @@ export const FavouritesProvider = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const pendingToggles = useRef(new Map());
 
-  // Fetch all favorites from API
+
   const fetchFavourites = useCallback(async () => {
     if (isLoading) return;
     
@@ -107,7 +104,7 @@ export const FavouritesProvider = ({ children }) => {
     }
   }, [isLoading]);
 
-  // Initialize favorites on mount
+
   useEffect(() => {
     fetchFavourites();
   }, []);
@@ -132,32 +129,32 @@ export const FavouritesProvider = ({ children }) => {
     [favourites],
   );
 
-  // Debounced API call for toggling favorites
+  
   const debouncedToggleAPI = useRef(
     debounce(async (id, type, isRestaurant, afterToggle) => {
       try {
         const apiCall = isRestaurant ? toggleFavoriteRestaurant : toggleFavoriteProduct;
         const result = await apiCall(id);
         
-        // Remove from pending after successful API call
+       
         pendingToggles.current.delete(`${type}:${id}`);
 
-        // Always re-sync with backend after a toggle
+        
         afterToggle?.();
         
         return result;
       } catch (error) {
         console.error('Error toggling favorite:', error);
         
-        // Revert optimistic update on error
+       
         const pendingState = pendingToggles.current.get(`${type}:${id}`);
         if (pendingState) {
           setFavourites(prev => {
             if (pendingState.wasAdded) {
-              // Was added optimistically, so remove it
+              
               return prev.filter(f => f.id !== id && f.restaurantId !== id && f.menuItemId !== id);
             } else {
-              // Was removed optimistically, so add it back
+              
               return [pendingState.item, ...prev];
             }
           });
@@ -214,7 +211,7 @@ export const FavouritesProvider = ({ children }) => {
         return !itemIsRestaurant && String(item.menuItemId || item.id) === String(targetId);
       };
 
-      // Optimistic update
+      
       setFavourites(prev => {
         const exists = prev.some(matchesTarget);
         
@@ -227,13 +224,13 @@ export const FavouritesProvider = ({ children }) => {
         return [fav, ...prev];
       });
 
-      // Store pending state for potential revert
+      
       pendingToggles.current.set(`${fav.type}:${targetId}`, {
         wasAdded: added,
         item: added ? fav : removedItem,
       });
 
-      // Debounced API call
+      
       debouncedToggleAPI(targetId, fav.type, isRestaurant, fetchFavourites);
 
       return { added };

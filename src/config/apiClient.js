@@ -14,6 +14,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
+  withCredentials: true, // Enable cookies for cross-origin requests
 });
 
 // Request Interceptor - Add auth token and check network availability
@@ -33,10 +34,13 @@ apiClient.interceptors.request.use(
       }
 
       // Add authorization token if available
-      const token = await AsyncStorage.getItem('auth_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      // const token = await AsyncStorage.getItem('auth_token');
+      // if (token) {
+      //   config.headers.Authorization = `Bearer ${token}`;
+      //   console.log('🔐 [ApiClient] Auth token added to request:', config.url);
+      // } else {
+      //   console.warn('⚠️ [ApiClient] No auth token found for request:', config.url);
+      // }
 
       return config;
     } catch (error) {
@@ -67,6 +71,12 @@ apiClient.interceptors.response.use(
       baseURL: error?.config?.baseURL,
       timeout: error?.config?.timeout,
     });
+
+    // Handle 401 Unauthorized errors
+    if (status === 401) {
+      console.error('🚫 [ApiClient] 401 Unauthorized - Token missing or expired');
+      console.error('User needs to log in or refresh token');
+    }
 
     // Handle network errors
     if (isNetworkError || error.isNetworkError) {

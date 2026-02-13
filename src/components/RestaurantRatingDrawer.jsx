@@ -33,25 +33,25 @@ const RatingDrawerModal = ({ visible, onClose, onSubmit }) => {
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.drawer}>
 
-          {/* Close Button */}
+          
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Icon name="close" size={20} color="#000" />
           </TouchableOpacity>
 
-          {/* Restaurant Image */}
+          
           <Image
             source={{ uri: "https://via.placeholder.com/100" }}
             style={styles.image}
           />
 
-          {/* Title */}
+          
           <Text style={styles.title}>Cellar Door Restaurant</Text>
           <Text style={styles.subtitle}>Pizza, Italian, Fast Food</Text>
 
-          {/* Stars */}
+         
           <View style={styles.starRow}>{renderStars()}</View>
 
-          {/* Message Box */}
+          
           <TextInput
             placeholder="Add Message"
             style={styles.input}
@@ -60,7 +60,7 @@ const RatingDrawerModal = ({ visible, onClose, onSubmit }) => {
             onChangeText={setMessage}
           />
 
-          {/* Submit Button */}
+          
           <TouchableOpacity
             style={styles.submitBtn}
             onPress={() => onSubmit({ rating, message })}

@@ -31,11 +31,11 @@ export const ConflictModal = ({
       return undefined;
     }
 
-    // Reset to initial state
+   
     overlayOpacity.setValue(0);
     scale.setValue(0.8);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
@@ -62,7 +62,7 @@ export const ConflictModal = ({
     return () => backHandler.remove();
   }, [visible, overlayOpacity, scale]);
 
-  // Debug logging
+
   React.useEffect(() => {
     console.log('ConflictModal - visible:', visible);
     console.log('ConflictModal - currentRestaurant:', currentRestaurant?.name);

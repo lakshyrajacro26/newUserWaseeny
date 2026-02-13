@@ -134,7 +134,7 @@ export default function AddToCartDrawer({
   useEffect(() => {
     if (!visible) return;
 
-    // Reset when opening / switching items
+    
     setQuantity(1);
     setNotes('');
     setSelectedTogetherIds(new Set());
@@ -222,24 +222,24 @@ export default function AddToCartDrawer({
     }
 
     openedAtRef.current = Date.now();
-    // Reset to initial position
+ 
     translateY.setValue(sheetHeight);
     overlayOpacity.setValue(0);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
         animateOpen();
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [visible]);
 
   const requestClose = () => {
     if (!visible) return;
 
-    // Block accidental close caused by the same tap that opened the modal.
+    
     if (Date.now() - openedAtRef.current < 280) return;
 
     animateClose(onClose);
@@ -250,7 +250,7 @@ export default function AddToCartDrawer({
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) => {
           const { dy, dx } = gesture;
-          // Vertical swipe with some intent.
+          
           return Math.abs(dy) > 6 && Math.abs(dy) > Math.abs(dx);
         },
         onPanResponderMove: (_, gesture) => {
@@ -274,8 +274,7 @@ export default function AddToCartDrawer({
           }
         },
       }),
-    // translateY is stable (ref)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [],
   );
 
@@ -320,14 +319,14 @@ export default function AddToCartDrawer({
         
         console.log('📥 AddToCartDrawer: API result:', result);
         
-        // If conflict, context handles the modal
+       
         if (result?.conflict) {
           console.log('⚠️ AddToCartDrawer: Conflict detected, drawer will stay open');
           setIsSubmitting(false);
           return;
         }
 
-        // Close drawer on success
+        
         if (result?.success || !result?.error) {
           console.log('✅ AddToCartDrawer: Item added successfully, closing drawer');
           onAddToCart?.();
@@ -412,7 +411,7 @@ export default function AddToCartDrawer({
           </View>
 
           <View style={styles.content}>
-            {/* Image Card */}
+            
             <View style={styles.heroCard}>
               <Image source={itemImageSource} style={styles.heroImage} />
             </View>
@@ -484,7 +483,7 @@ export default function AddToCartDrawer({
               </View>
             )}
 
-            {/* Frequently bought together (checkboxes) */}
+            
             {frequentlyBought.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionTitleRow}>
@@ -538,7 +537,7 @@ export default function AddToCartDrawer({
               </View>
             )}
 
-            {/* Notes */}
+        
             <View style={styles.section}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>Additional Request</Text>
@@ -562,7 +561,7 @@ export default function AddToCartDrawer({
             <View style={{ height: 140 + (Platform.OS === 'ios' ? 10 : 0) }} />
           </View>
 
-          {/* Fixed bottom bar */}
+          
           <View style={styles.bottomBar}>
             <View style={styles.bottomTopRow}>
               <View style={styles.qtyWrap}>

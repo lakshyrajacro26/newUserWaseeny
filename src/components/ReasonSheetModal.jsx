@@ -30,11 +30,11 @@ export default function ReasonSheetModal({
       return undefined;
     }
 
-    // Reset to initial position
+   
     overlayOpacity.setValue(0);
     translateY.setValue(SCREEN_HEIGHT);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {

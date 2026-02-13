@@ -18,12 +18,16 @@ export default function OrderConfirmedModal({
   orderId,
   onViewDetails,
   onExploreMenu,
+  status = 'success',
+  errorMessage,
 }) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = React.useState(false);
 
   const safeOrderId = useMemo(() => orderId || '—', [orderId]);
+  const isSuccess = status === 'success';
+  const isFailed = status === 'failed';
 
   useEffect(() => {
     if (!visible) {
@@ -31,11 +35,11 @@ export default function OrderConfirmedModal({
       return undefined;
     }
 
-    // Reset to initial position
+   
     overlayOpacity.setValue(0);
     translateY.setValue(SCREEN_HEIGHT);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
@@ -79,7 +83,7 @@ export default function OrderConfirmedModal({
       animationType="none"
       statusBarTranslucent
       onRequestClose={() => {
-        // Disable back close
+       
       }}
     >
       <View style={styles.modalRoot}>
@@ -96,41 +100,70 @@ export default function OrderConfirmedModal({
           ]}
         >
           <View style={styles.content}>
-            <View style={styles.celebrateWrap}>
-              <Text style={styles.celebrateIcon}>🎉</Text>
+            <View style={[styles.celebrateWrap, isFailed && styles.errorWrap]}>
+              <Text style={styles.celebrateIcon}>{isSuccess ? '🎉' : '❌'}</Text>
             </View>
 
-            <Text style={styles.title}>Order Confirmed</Text>
+            <Text style={styles.title}>{isSuccess ? 'Order Confirmed' : 'Order Failed'}</Text>
             <Text style={styles.subtitle}>
-              Your order has been placed successfully. You can track the order
-              status and details anytime.
+              {isSuccess
+                ? 'Your order has been placed successfully. You can track the order status and details anytime.'
+                : errorMessage || 'Unable to place your order. Please try again or contact support.'}
             </Text>
 
-            <View style={styles.badge}>
-              <Text style={styles.badgeLabel}>Order ID : </Text>
-              <Text style={styles.badgeValue}>{safeOrderId}</Text>
-            </View>
+            {isSuccess && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeLabel}>Order ID : </Text>
+                <Text style={styles.badgeValue}>{safeOrderId}</Text>
+              </View>
+            )}
 
             <View style={styles.buttonStack}>
-              <Pressable
-                onPress={onViewDetails}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && styles.btnPressed,
-                ]}
-              >
-                <Text style={styles.primaryText}>View Booking Details</Text>
-              </Pressable>
+              {isSuccess ? (
+                <>
+                  <Pressable
+                    onPress={onViewDetails}
+                    style={({ pressed }) => [
+                      styles.primaryBtn,
+                      pressed && styles.btnPressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryText}>View Booking Details</Text>
+                  </Pressable>
 
-              <Pressable
-                onPress={onExploreMenu}
-                style={({ pressed }) => [
-                  styles.secondaryBtn,
-                  pressed && styles.btnPressed,
-                ]}
-              >
-                <Text style={styles.secondaryText}>Explore Other Menu</Text>
-              </Pressable>
+                  <Pressable
+                    onPress={onExploreMenu}
+                    style={({ pressed }) => [
+                      styles.secondaryBtn,
+                      pressed && styles.btnPressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryText}>Explore Other Menu</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={onViewDetails}
+                    style={({ pressed }) => [
+                      styles.primaryBtn,
+                      pressed && styles.btnPressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryText}>Try Again</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={onExploreMenu}
+                    style={({ pressed }) => [
+                      styles.secondaryBtn,
+                      pressed && styles.btnPressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryText}>Go Back</Text>
+                  </Pressable>
+                </>
+              )}
             </View>
           </View>
         </Animated.View>
@@ -169,6 +202,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+  },
+  errorWrap: {
+    backgroundColor: '#FFE5E5',
   },
   celebrateIcon: {
     fontSize: 36,

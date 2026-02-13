@@ -25,11 +25,11 @@ const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
       return undefined;
     }
 
-    // Reset to initial position
+    
     overlayOpacity.setValue(0);
     translateY.setValue(SCREEN_HEIGHT);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
@@ -77,7 +77,7 @@ const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
         </Animated.View>
 
         <Animated.View style={[styles.drawer, { transform: [{ translateY }] }]}>
-          {/* Close Button */}
+          
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <X size={24} color="#111" />
           </TouchableOpacity>
@@ -86,13 +86,13 @@ const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.content}
           >
-            {/* Coupon Title */}
+            
             <Text style={styles.title}>{coupon.title}</Text>
 
-            {/* Amount */}
+            
             <Text style={styles.amount}>₹{coupon.amount.toFixed(2)}</Text>
 
-            {/* Meta Info */}
+            
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>
                 Min Spend ₹{coupon.minSpend.toFixed(2)}
@@ -101,10 +101,10 @@ const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
               <Text style={styles.metaText}>Use by {coupon.expires}</Text>
             </View>
 
-            {/* Divider */}
+           
             <View style={styles.divider} />
 
-            {/* Terms & Conditions */}
+            
             <Text style={styles.sectionTitle}>Terms & Conditions</Text>
 
             <View style={styles.termsList}>
@@ -117,7 +117,7 @@ const CouponDetailsDrawer = ({ visible, coupon, onClose, onUseNow }) => {
             </View>
           </ScrollView>
 
-          {/* Use Now Button */}
+          
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.useNowBtn}

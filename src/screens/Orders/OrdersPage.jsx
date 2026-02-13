@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState, useEffect } from 'react';
+import React, { useContext, useMemo, useState, useEffect, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   Pressable,
   ActivityIndicator,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 
 import { CartContext } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
@@ -59,13 +60,10 @@ function formatOrderDateTime(isoString) {
 function getImageSource(image) {
   if (!image) return FALLBACK_ITEM_IMAGE;
 
-  // RN local asset via require(...) is a number
   if (typeof image === 'number') return image;
 
-  // Remote image url
   if (typeof image === 'string') return { uri: image };
 
-  // Already a valid source object
   if (typeof image === 'object') return image;
 
   return FALLBACK_ITEM_IMAGE;
@@ -94,18 +92,27 @@ function deriveStatusUi(order) {
     };
   }
 
-  // confirmed / preparing / placed / default
   return { status: 'Preparing', statusColor: '#F2994A' };
 }
 
 export default function OrdersScreen() {
-  const [tab, setTab] = useState('Delivery');
-  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const { orders, fetchOrders } = useContext(CartContext);
 
-  // Fetch orders when component mounts
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchOrders();
+    } catch (error) {
+      console.log('Refresh error:', error?.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchOrders]);
+
   useEffect(() => {
     const loadOrders = async () => {
       try {
@@ -121,31 +128,14 @@ export default function OrdersScreen() {
     };
 
     loadOrders();
-  }, [fetchOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const data = useMemo(() => {
-    const normalizedQuery = String(query || '')
-      .trim()
-      .toLowerCase();
-    const wantType = tab === 'Pickup' ? 'pickup' : 'delivery';
-
     return (orders || [])
       .filter(o => {
-        // Determine order type: if deliveryAddress exists, it's delivery; otherwise pickup
         const hasDeliveryAddress = !!o?.deliveryAddress;
-        const type = hasDeliveryAddress ? 'delivery' : 'pickup';
-        return type === wantType;
-      })
-      .filter(o => {
-        if (!normalizedQuery) return true;
-        const restaurantName = o?.restaurant?.name?.en || o?.restaurant?.name || 'Restaurant';
-        const itemsText = (o?.items || [])
-          .map(it => it?.name || it?.product?.name?.en || it?.productName)
-          .filter(Boolean)
-          .join(' ');
-        return `${restaurantName} ${itemsText}`
-          .toLowerCase()
-          .includes(normalizedQuery);
+        return hasDeliveryAddress;
       })
       .map(o => {
         const ui = deriveStatusUi(o);
@@ -153,48 +143,46 @@ export default function OrdersScreen() {
           ...o,
           ...ui,
         };
+      })
+      .filter(o => {
+        if (statusFilter === 'All') return true;
+        if (statusFilter === 'Ongoing') return o.status === 'Ongoing' || o.status === 'Preparing';
+        if (statusFilter === 'Completed') return o.completed === true;
+        if (statusFilter === 'Cancelled') return o.status === 'Cancelled';
+        return true;
       });
-  }, [orders, query, tab]);
+  }, [orders, statusFilter]);
+
+  const handleFilterChange = useCallback((status) => {
+    setStatusFilter(status);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.header}>Your Orders</Text>
 
-      {/* Tabs */}
-      <View style={styles.tabWrapper}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'Delivery' && styles.tabActive]}
-          onPress={() => setTab('Delivery')}
-        >
-          <Text
-            style={[styles.tabText, tab === 'Delivery' && styles.tabTextActive]}
+      {/* Status Filter */}
+      <View style={styles.filterContainer}>
+        {['All', 'Ongoing', 'Completed', 'Cancelled'].map(status => (
+          <TouchableOpacity
+            key={status}
+            style={[
+              styles.filterChip,
+              statusFilter === status && styles.filterChipActive,
+            ]}
+            onPress={() => handleFilterChange(status)}
+            activeOpacity={0.7}
           >
-            Delivery
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'Pickup' && styles.tabActive]}
-          onPress={() => setTab('Pickup')}
-        >
-          <Text
-            style={[styles.tabText, tab === 'Pickup' && styles.tabTextActive]}
-          >
-            Pickup
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchBox}>
-        <Search size={16} color="#9E9E9E" />
-        <TextInput
-          placeholder="Search Order"
-          placeholderTextColor="#9E9E9E"
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-        />
+            <Text
+              style={[
+                styles.filterChipText,
+                statusFilter === status && styles.filterChipTextActive,
+              ]}
+            >
+              {status}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {loading ? (
@@ -205,10 +193,10 @@ export default function OrdersScreen() {
       ) : data.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            {query ? 'No orders found matching your search' : 'No orders yet'}
+            {statusFilter !== 'All' ? `No ${statusFilter.toLowerCase()} orders` : 'No orders yet'}
           </Text>
           <Text style={styles.emptySubText}>
-            {!query && 'Your orders will appear here'}
+            {statusFilter === 'All' && 'Your orders will appear here'}
           </Text>
         </View>
       ) : (
@@ -218,14 +206,26 @@ export default function OrdersScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: SPACING.lg }}
           renderItem={({ item }) => <OrderCard item={item} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ed1c24']}
+              tintColor="#ed1c24"
+            />
+          }
         />
       )}
     </SafeAreaView>
   );
 }
 
-function OrderCard({ item }) {
+const OrderCard = memo(function OrderCard({ item }) {
   const navigation = useNavigation();
+
+  const handlePress = useCallback(() => {
+    navigation.navigate("OrderDetailsScreen", { orderId: item._id || item.id });
+  }, [navigation, item._id, item.id]);
   const restaurantName =
     item?.restaurant?.name?.en || item?.restaurant?.name || item?.restaurantName || 'Restaurant';
 
@@ -241,7 +241,6 @@ function OrderCard({ item }) {
 
   const { dateLine1, dateLine2 } = formatOrderDateTime(item?.createdAt);
 
-  // Handle multiple possible total field names from backend
   const total =
     typeof item?.totalAmount === 'number'
       ? item.totalAmount
@@ -256,7 +255,7 @@ function OrderCard({ item }) {
       : 0;
 
   return (
-    <Pressable style={styles.card} onPress={() => navigation.navigate("OrderDetailsScreen", { orderId: item._id || item.id })}>
+    <Pressable style={styles.card} onPress={handlePress}>
       {/* Restaurant */}
       <View style={styles.rowBetween}>
         <View>
@@ -318,7 +317,7 @@ function OrderCard({ item }) {
       )}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -353,7 +352,7 @@ const styles = StyleSheet.create({
   },
 
   tabActive: {
-    backgroundColor: '#000000',
+    backgroundColor: '#ed1c24',
   },
 
   tabText: {
@@ -366,22 +365,35 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  searchBox: {
-    height: scale(40),
-    borderRadius: scale(20),
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+  filterContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
     marginBottom: SPACING.lg,
+    gap: SPACING.sm,
   },
 
-  searchInput: {
-    flex: 1,
-    marginLeft: SPACING.sm,
+  filterChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: scale(20),
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+
+  filterChipActive: {
+    backgroundColor: '#ed1c24',
+    borderColor: '#ed1c24',
+  },
+
+  filterChipText: {
     fontSize: FONT_SIZES.xs,
-    color: '#000',
+    fontWeight: '500',
+    color: '#666666',
+  },
+
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 
   card: {

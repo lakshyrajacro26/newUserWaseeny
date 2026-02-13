@@ -17,6 +17,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import apiClient from '../../config/apiClient';
 import { ORDER_ROUTES } from '../../config/routes';
 import { toNumber } from '../../services/cartPricing';
+import { RefreshableWrapper } from '../../components/RefreshableWrapper';
+import OrderRatingModule from '../../components/Rating/OrderRatingModule';
 import { wp, hp } from '../../utils/responsive';
 import { scale } from '../../utils/scale';
 import { FONT_SIZES } from '../../theme/typography';
@@ -65,6 +67,39 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(true);
 
   const orderId = route?.params?.orderId;
+  const orderData = route?.params?.orderData;
+  const fromScreen = route?.params?.fromScreen; // Track where we came from
+
+  const handleBackPress = () => {
+    // If coming from ReviewOrderScreen or Cart, go to Home
+    if (fromScreen === 'ReviewOrder' || fromScreen === 'Cart') {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+      });
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  const fetchOrder = async () => {
+    if (!orderId) return;
+    
+    
+    if (orderData) {
+      setOrder(orderData);
+      return;
+    }
+    
+    try {
+      const url = ORDER_ROUTES.getOrderById.replace(':id', orderId);
+      const response = await apiClient.get(url);
+      setOrder(response?.data?.order || response?.data?.data || response?.data);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      setOrder(null);
+    }
+  };
 
   useEffect(() => {
     if (!orderId) {
@@ -72,22 +107,14 @@ export default function OrderDetailsScreen() {
       return;
     }
 
-    const fetchOrder = async () => {
-      try {
-        setLoading(true);
-        const url = ORDER_ROUTES.getOrderById.replace(':id', orderId);
-        const response = await apiClient.get(url);
-        setOrder(response?.data?.order || response?.data?.data || response?.data);
-      } catch (error) {
-        console.error('Error fetching order:', error);
-        setOrder(null);
-      } finally {
-        setLoading(false);
-      }
+    const loadOrder = async () => {
+      setLoading(true);
+      await fetchOrder();
+      setLoading(false);
     };
 
-    fetchOrder();
-  }, [orderId]);
+    loadOrder();
+  }, [orderId, orderData]);
 
   const items = Array.isArray(order?.items) ? order.items : [];
   const first = items[0];
@@ -149,7 +176,7 @@ export default function OrderDetailsScreen() {
         </View>
       ) : (
         <>
-      {/* HEADER IMAGE - EXACT like image */}
+      
       <View style={styles.imageWrapper}>
         <ImageBackground
           source={imgSource(restaurantImage)}
@@ -165,7 +192,7 @@ export default function OrderDetailsScreen() {
             <TouchableOpacity
               style={styles.backBtn}
               activeOpacity={0.85}
-              onPress={() => navigation.goBack()}
+              onPress={handleBackPress}
             >
               <ArrowLeft size={20} color="#111" />
             </TouchableOpacity>
@@ -202,16 +229,17 @@ export default function OrderDetailsScreen() {
         </ImageBackground>
       </View>
 
-      <ScrollView
+      <RefreshableWrapper
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onRefresh={fetchOrder}
       >
-        {/* ORDER STATUS BANNER */}
+        
         <View style={styles.statusSection}>
           <Text style={styles.statusText}>🔥 “{statusLine}”</Text>
         </View>
 
-        {/* ITEMS SECTION */}
+        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items ({items.length})</Text>
 
@@ -240,7 +268,7 @@ export default function OrderDetailsScreen() {
           })}
         </View>
 
-        {/* BILL DETAILS SECTION */}
+        
         <View style={styles.billSection}>
           <Text style={styles.sectionTitle}>Bill Details</Text>
 
@@ -334,7 +362,7 @@ export default function OrderDetailsScreen() {
           )}
         </View>
 
-        {/* ADDRESS + ORDER INFO CARD */}
+       
         <View style={styles.infoCard}>
           <View style={styles.infoBlock}>
             <View style={styles.rowBetween}>
@@ -371,7 +399,18 @@ export default function OrderDetailsScreen() {
             <Text style={styles.infoValue}>{formatDateTime(order?.createdAt || order?.paidAt)}</Text>
           </View>
         </View>
-      </ScrollView>
+
+        
+        {order?.status === 'delivered' && (
+          <OrderRatingModule 
+            order={order} 
+            onSuccess={() => {
+              
+              fetchOrder();
+            }}
+          />
+        )}
+      </RefreshableWrapper>
         </>
       )}
     </SafeAreaView>

@@ -89,11 +89,11 @@ export default function DeliveryPickupSheet({
       return undefined;
     }
 
-    // Reset to initial position
+    
     overlayOpacity.setValue(0);
     translateY.setValue(SCREEN_HEIGHT);
     
-    // Wait for next frame before rendering and animating
+    
     requestAnimationFrame(() => {
       setShouldRender(true);
       requestAnimationFrame(() => {
@@ -158,7 +158,7 @@ export default function DeliveryPickupSheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={() => {
-        // Disable back
+        
       }}
     >
       <View style={styles.modalRoot}>
@@ -218,7 +218,7 @@ export default function DeliveryPickupSheet({
             </TouchableOpacity>
           </View>
 
-          {/* Date Select */}
+          
           <View style={styles.fieldBlock}>
             <Text style={styles.fieldLabel}>
               {type === 'pickup' ? 'Pick-up Date' : 'Delivery Date'}
@@ -275,7 +275,7 @@ export default function DeliveryPickupSheet({
             )}
           </View>
 
-          {/* Time Select */}
+        
           <View style={styles.fieldBlock}>
             <Text style={styles.fieldLabel}>
               {type === 'pickup' ? 'Pick-up Time' : 'Delivery Time'}

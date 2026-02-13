@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -31,22 +31,146 @@ function getLocalizedText(value) {
   return String(value);
 }
 
+// Memoized Restaurant Card Component
+const RestaurantCard = memo(({ 
+  restaurant, 
+  onPress, 
+  onToggleFavourite 
+}) => {
+  const restaurantName = getLocalizedText(restaurant.name);
+  const restaurantDesc = getLocalizedText(restaurant.description);
+
+  const handleHeartPress = useCallback((e) => {
+    e.stopPropagation();
+    onToggleFavourite();
+  }, [onToggleFavourite]);
+
+  return (
+    <TouchableOpacity
+      style={styles.restaurantCard}
+      activeOpacity={0.9}
+      onPress={onPress}
+    >
+      <Image source={imgSource(restaurant.image)} style={styles.restaurantImg} />
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={2} style={styles.restaurantName}>
+          {restaurantName}
+        </Text>
+        {!!restaurantDesc && (
+          <Text numberOfLines={2} style={styles.desc}>
+            {restaurantDesc}
+          </Text>
+        )}
+      </View>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.heartBtn}
+        onPress={handleHeartPress}
+      >
+        <Heart size={20} color="#FF3D3D" fill="#FF3D3D" />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+});
+
+RestaurantCard.displayName = 'RestaurantCard';
+
+// Memoized Item Card Component
+const ItemCard = memo(({ 
+  item, 
+  cartQty, 
+  cartLineId,
+  onDecrement,
+  onIncrement,
+  onAddToCart,
+  onToggleFavourite
+}) => {
+  const itemName = getLocalizedText(item.name);
+  const itemDesc = getLocalizedText(item.description);
+
+  return (
+    <View style={styles.itemCard}>
+      <Image source={imgSource(item.image)} style={styles.itemImg} />
+
+      {/* Quantity overlay */}
+      {cartQty > 0 && (
+        <View style={styles.qtyOverlay} pointerEvents="box-none">
+          <View style={styles.qtyWrap}>
+            <TouchableOpacity
+              onPress={onDecrement}
+              style={styles.qtyBtnOverlay}
+              activeOpacity={0.8}
+            >
+              <Minus size={14} color="#E53935" />
+            </TouchableOpacity>
+
+            <Text style={styles.qtyTextOverlay}>{cartQty}</Text>
+
+            <TouchableOpacity
+              onPress={onIncrement}
+              style={styles.qtyBtnOverlay}
+              activeOpacity={0.8}
+            >
+              <Plus size={14} color="#E53935" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={2} style={styles.itemName}>
+          {itemName}
+        </Text>
+        {!!itemDesc && (
+          <Text numberOfLines={2} style={styles.itemDesc}>
+            {itemDesc}
+          </Text>
+        )}
+        
+        <View style={styles.itemBottomRow}>
+          <Text style={styles.itemPrice}>₹{toNumber(item.price, 0)}</Text>
+          
+          {cartQty === 0 && (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.addBtnSmall}
+              onPress={onAddToCart}
+            >
+              <Text style={styles.addBtnSmallText}>ADD</Text>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.heartBtnSmall}
+            onPress={onToggleFavourite}
+          >
+            <Heart size={18} color="#FF3D3D" fill="#FF3D3D" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+ItemCard.displayName = 'ItemCard';
+
 export default function Favourite() {
   const navigation = useNavigation();
   const { favourites, favouritesCount, toggleFavourite, isLoading, fetchFavourites } =
     useContext(FavouritesContext);
   const { cartCount, cart, addToCart, incrementItem, decrementItem } = useContext(CartContext);
 
-  // Extract restaurant ID properly
-  const getRestaurantId = (item) => {
+  // Extract restaurant ID properly - memoized
+  const getRestaurantId = useCallback((item) => {
     if (typeof item.restaurantId === 'object' && item.restaurantId?._id) {
       return item.restaurantId._id;
     }
     return item.restaurantId || null;
-  };
+  }, []);
 
-  // Get cart quantity for an item
-  const getCartQuantity = (item) => {
+  // Get cart quantity for an item - memoized
+  const getCartQuantity = useCallback((item) => {
     if (!Array.isArray(cart)) return 0;
     const restaurantId = getRestaurantId(item);
     const cartItem = cart.find(
@@ -55,10 +179,10 @@ export default function Favourite() {
         String(ci.restaurantId ?? '') === String(restaurantId)
     );
     return toNumber(cartItem?.quantity, 0);
-  };
+  }, [cart, getRestaurantId]);
 
-  // Get cart line ID for an item
-  const getCartLineId = (item) => {
+  // Get cart line ID for an item - memoized
+  const getCartLineId = useCallback((item) => {
     if (!Array.isArray(cart)) return null;
     const restaurantId = getRestaurantId(item);
     const cartItem = cart.find(
@@ -67,7 +191,7 @@ export default function Favourite() {
         String(ci.restaurantId ?? '') === String(restaurantId)
     );
     return cartItem?.id ?? null;
-  };
+  }, [cart, getRestaurantId]);
 
   // Separate restaurants and products
   const { restaurants, productsByRestaurant } = useMemo(() => {
@@ -98,13 +222,168 @@ export default function Favourite() {
 
   const hasFav = favouritesCount > 0;
 
+  // Memoized navigation handlers
+  const handleGoBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  const handleNavigateToCart = useCallback(() => {
+    navigation.navigate('MainTabs', {
+      screen: 'Home',
+      params: { screen: 'Cart' },
+    });
+  }, [navigation]);
+
+  const handleBrowseDishes = useCallback(() => {
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  }, [navigation]);
+
+  // Restaurant handlers
+  const handleRestaurantPress = useCallback((restaurant) => {
+    const restaurantName = getLocalizedText(restaurant.name);
+    navigation.navigate('MainTabs', {
+      screen: 'Home',
+      params: {
+        screen: 'RestaurantDetail',
+        params: {
+          restaurant: {
+            id: restaurant.restaurantId || restaurant.id,
+            _id: restaurant.restaurantId || restaurant.id,
+            name: restaurantName,
+            image: restaurant.image,
+            bannerImage: restaurant.image,
+          },
+        },
+      },
+    });
+  }, [navigation]);
+
+  const handleRestaurantToggleFavourite = useCallback((restaurant) => {
+    const restaurantName = getLocalizedText(restaurant.name);
+    toggleFavourite?.({
+      id: restaurant.restaurantId || restaurant.id,
+      restaurantId: restaurant.restaurantId || restaurant.id,
+      name: restaurantName,
+      image: restaurant.image,
+      restaurantName: restaurantName,
+      type: 'restaurant',
+    });
+  }, [toggleFavourite]);
+
+  // Item handlers
+  const handleItemDecrement = useCallback((cartLineId) => {
+    if (cartLineId) {
+      decrementItem?.(cartLineId);
+    }
+  }, [decrementItem]);
+
+  const handleItemIncrement = useCallback((cartLineId) => {
+    if (cartLineId) {
+      incrementItem?.(cartLineId);
+    }
+  }, [incrementItem]);
+
+  const handleItemAddToCart = useCallback((item) => {
+    const restaurantId = getRestaurantId(item);
+    const itemName = getLocalizedText(item.name);
+    
+    if (!restaurantId || !item.menuItemId) {
+      console.error('Missing restaurantId or menuItemId:', { 
+        restaurantId, 
+        menuItemId: item.menuItemId,
+        item 
+      });
+      return;
+    }
+    
+    addToCart?.({
+      cartLineId: item.id,
+      id: item.id,
+      menuItemId: item.menuItemId,
+      name: itemName,
+      image: item.image,
+      basePrice: toNumber(item.basePrice ?? item.price, 0),
+      price: toNumber(item.basePrice ?? item.price, 0),
+      selectedFlavor: null,
+      addOns: [],
+      quantity: 1,
+      restaurantId: restaurantId,
+      restaurantName: getLocalizedText(item.restaurantName),
+    });
+  }, [addToCart, getRestaurantId]);
+
+  const handleItemToggleFavourite = useCallback((item) => {
+    const productId = item.menuItemId ?? item.productId ?? item.id ?? null;
+    const itemName = getLocalizedText(item.name);
+    const itemDesc = getLocalizedText(item.description);
+    
+    if (!productId) {
+      console.warn('Missing productId for favorite toggle:', item);
+      return;
+    }
+    
+    toggleFavourite?.({
+      id: item.id,
+      menuItemId: productId,
+      name: itemName,
+      image: item.image,
+      description: itemDesc,
+      price: toNumber(item.price, 0),
+      basePrice: toNumber(item.basePrice ?? item.price, 0),
+      restaurantId: getRestaurantId(item),
+      restaurantName: getLocalizedText(item.restaurantName),
+      type: 'product',
+    });
+  }, [toggleFavourite, getRestaurantId]);
+
+  // Render restaurant function with memoization
+  const renderRestaurant = useCallback((restaurant) => {
+    const onPress = () => handleRestaurantPress(restaurant);
+    const onToggleFavourite = () => handleRestaurantToggleFavourite(restaurant);
+    
+    return (
+      <RestaurantCard
+        key={restaurant.id}
+        restaurant={restaurant}
+        onPress={onPress}
+        onToggleFavourite={onToggleFavourite}
+      />
+    );
+  }, [handleRestaurantPress, handleRestaurantToggleFavourite]);
+
+  // Render item function with memoization
+  const renderItem = useCallback((item) => {
+    const cartQty = getCartQuantity(item);
+    const cartLineId = getCartLineId(item);
+    
+    return (
+      <ItemCard
+        key={item.id}
+        item={item}
+        cartQty={cartQty}
+        cartLineId={cartLineId}
+        onDecrement={() => handleItemDecrement(cartLineId)}
+        onIncrement={() => handleItemIncrement(cartLineId)}
+        onAddToCart={() => handleItemAddToCart(item)}
+        onToggleFavourite={() => handleItemToggleFavourite(item)}
+      />
+    );
+  }, [
+    getCartQuantity,
+    getCartLineId,
+    handleItemDecrement,
+    handleItemIncrement,
+    handleItemAddToCart,
+    handleItemToggleFavourite,
+  ]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconBtn}
           activeOpacity={0.85}
-          onPress={() => navigation.goBack()}
+          onPress={handleGoBack}
         >
           <ArrowLeft size={20} color="#111" />
         </TouchableOpacity>
@@ -114,12 +393,7 @@ export default function Favourite() {
         <TouchableOpacity
           style={styles.iconBtn}
           activeOpacity={0.85}
-          onPress={() =>
-            navigation.navigate('MainTabs', {
-              screen: 'Home',
-              params: { screen: 'Cart' },
-            })
-          }
+          onPress={handleNavigateToCart}
         >
           <ShoppingBag size={20} color="#111" />
           {cartCount > 0 && (
@@ -143,7 +417,7 @@ export default function Favourite() {
           <TouchableOpacity
             style={styles.primaryBtn}
             activeOpacity={0.9}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+            onPress={handleBrowseDishes}
           >
             <Text style={styles.primaryBtnText}>Browse dishes</Text>
           </TouchableOpacity>
@@ -164,64 +438,7 @@ export default function Favourite() {
           {restaurants.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Restaurants</Text>
-              {restaurants.map(restaurant => {
-                const restaurantName = getLocalizedText(restaurant.name);
-                const restaurantDesc = getLocalizedText(restaurant.description);
-                
-                return (
-                  <TouchableOpacity
-                    key={restaurant.id}
-                    style={styles.restaurantCard}
-                    activeOpacity={0.9}
-                    onPress={() =>
-                      navigation.navigate('MainTabs', {
-                        screen: 'Home',
-                        params: {
-                          screen: 'RestaurantDetail',
-                          params: {
-                            restaurant: {
-                              id: restaurant.restaurantId || restaurant.id,
-                              _id: restaurant.restaurantId || restaurant.id,
-                              name: restaurantName,
-                              image: restaurant.image,
-                              bannerImage: restaurant.image,
-                            },
-                          },
-                        },
-                      })
-                    }
-                  >
-                    <Image source={imgSource(restaurant.image)} style={styles.restaurantImg} />
-                    <View style={{ flex: 1 }}>
-                      <Text numberOfLines={2} style={styles.restaurantName}>
-                        {restaurantName}
-                      </Text>
-                      {!!restaurantDesc && (
-                        <Text numberOfLines={2} style={styles.desc}>
-                          {restaurantDesc}
-                        </Text>
-                      )}
-                    </View>
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      style={styles.heartBtn}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        toggleFavourite?.({
-                          id: restaurant.restaurantId || restaurant.id,
-                          restaurantId: restaurant.restaurantId || restaurant.id,
-                          name: restaurantName,
-                          image: restaurant.image,
-                          restaurantName: restaurantName,
-                          type: 'restaurant',
-                        });
-                      }}
-                    >
-                      <Heart size={20} color="#FF3D3D" fill="#FF3D3D" />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                );
-              })}
+              {restaurants.map(renderRestaurant)}
             </View>
           )}
 
@@ -232,131 +449,7 @@ export default function Favourite() {
               {productsByRestaurant.map((group, idx) => (
                 <View key={String(idx)} style={styles.group}>
                   <Text style={styles.groupTitle}>{getLocalizedText(group.restaurantName)}</Text>
-
-                  {group.items.map(item => {
-                    const itemName = getLocalizedText(item.name);
-                    const itemDesc = getLocalizedText(item.description);
-                    const cartQty = getCartQuantity(item);
-                    const cartLineId = getCartLineId(item);
-                    const productId = item.menuItemId ?? item.productId ?? item.id ?? null;
-                    
-                    return (
-                      <View key={item.id} style={styles.itemCard}>
-                        <Image source={imgSource(item.image)} style={styles.itemImg} />
-
-                        {/* Quantity overlay like cart page */}
-                        {cartQty > 0 && (
-                          <View style={styles.qtyOverlay} pointerEvents="box-none">
-                            <View style={styles.qtyWrap}>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  if (cartLineId) {
-                                    decrementItem?.(cartLineId);
-                                  }
-                                }}
-                                style={styles.qtyBtnOverlay}
-                                activeOpacity={0.8}
-                              >
-                                <Minus size={14} color="#E53935" />
-                              </TouchableOpacity>
-
-                              <Text style={styles.qtyTextOverlay}>{cartQty}</Text>
-
-                              <TouchableOpacity
-                                onPress={() => {
-                                  if (cartLineId) {
-                                    incrementItem?.(cartLineId);
-                                  }
-                                }}
-                                style={styles.qtyBtnOverlay}
-                                activeOpacity={0.8}
-                              >
-                                <Plus size={14} color="#E53935" />
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        )}
-
-                        <View style={{ flex: 1 }}>
-                          <Text numberOfLines={2} style={styles.itemName}>
-                            {itemName}
-                          </Text>
-                          {!!itemDesc && (
-                            <Text numberOfLines={2} style={styles.itemDesc}>
-                              {itemDesc}
-                            </Text>
-                          )}
-                          
-                          <View style={styles.itemBottomRow}>
-                            <Text style={styles.itemPrice}>₹{toNumber(item.price, 0)}</Text>
-                            
-                            {cartQty === 0 && (
-                              <TouchableOpacity
-                                activeOpacity={0.9}
-                                style={styles.addBtnSmall}
-                                onPress={() => {
-                                  const restaurantId = getRestaurantId(item);
-                                  if (!restaurantId || !item.menuItemId) {
-                                    console.error('Missing restaurantId or menuItemId:', { 
-                                      restaurantId, 
-                                      menuItemId: item.menuItemId,
-                                      item 
-                                    });
-                                    return;
-                                  }
-                                  
-                                  addToCart?.({
-                                    cartLineId: item.id,
-                                    id: item.id,
-                                    menuItemId: item.menuItemId,
-                                    name: itemName,
-                                    image: item.image,
-                                    basePrice: toNumber(
-                                      item.basePrice ?? item.price,
-                                      0,
-                                    ),
-                                    price: toNumber(item.basePrice ?? item.price, 0),
-                                    selectedFlavor: null,
-                                    addOns: [],
-                                    quantity: 1,
-                                    restaurantId: restaurantId,
-                                    restaurantName: getLocalizedText(item.restaurantName),
-                                  });
-                                }}
-                              >
-                                <Text style={styles.addBtnSmallText}>ADD</Text>
-                              </TouchableOpacity>
-                            )}
-                            
-                            <TouchableOpacity
-                              activeOpacity={0.85}
-                              style={styles.heartBtnSmall}
-                              onPress={() => {
-                                if (!productId) {
-                                  console.warn('Missing productId for favorite toggle:', item);
-                                  return;
-                                }
-                                toggleFavourite?.({
-                                  id: item.id,
-                                  menuItemId: productId,
-                                  name: itemName,
-                                  image: item.image,
-                                  description: itemDesc,
-                                  price: toNumber(item.price, 0),
-                                  basePrice: toNumber(item.basePrice ?? item.price, 0),
-                                  restaurantId: getRestaurantId(item),
-                                  restaurantName: getLocalizedText(item.restaurantName),
-                                  type: 'product',
-                                });
-                              }}
-                            >
-                              <Heart size={18} color="#FF3D3D" fill="#FF3D3D" />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })}
+                  {group.items.map(renderItem)}
                 </View>
               ))}
             </View>
@@ -483,6 +576,11 @@ const styles = StyleSheet.create({
     color: '#111', 
     fontSize: 16,
     marginBottom: 4,
+  },
+  desc: {
+    color: '#777',
+    fontWeight: '600',
+    fontSize: 13,
   },
   heartBtn: {
     width: 40,
